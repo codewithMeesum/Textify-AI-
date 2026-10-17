@@ -676,10 +676,14 @@ with left:
         )
 
         if st.button(
-            "Generate AI notes",
-            use_container_width=True,
-            disabled=not source_text.strip(),
-        ):
+    "Generate AI notes",
+    use_container_width=True,
+    disabled=not source_text.strip(),
+):
+    st.session_state.pop("ai_notes_result", None)
+    st.session_state.pop("ai_notes_result_display", None)
+
+            
             if len(source_text) > MAX_AI_CHARACTERS:
                 st.warning(
                     f"Please keep your text under "
