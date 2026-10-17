@@ -43,20 +43,6 @@ Designed for simplicity and customization, it lets users choose handwriting font
 - 📥 **PDF Download:** Save your completed document as a PDF.
 - 📱 **Responsive Interface:** Access the application on desktop and mobile screens.
 
-## 🖼️ Application Preview
-
-<div align="center">
-
-<!-- Add your actual application screenshot at this path. -->
-
-<img src="assets/textify-ai-preview.png" alt="Textify AI application interface" width="90%">
-
-*Your text, transformed into a handwritten experience.*
-
-</div>
-
-> To display your screenshot, add it to the repository at `assets/textify-ai-preview.png`, or update the image path to match your actual screenshot.
-
 ## 🛠️ Tech Stack
 
 | Technology | Purpose |
