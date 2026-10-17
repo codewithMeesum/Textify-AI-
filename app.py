@@ -1,374 +1,978 @@
 import io
+import os
 import random
-import textwrap
 from pathlib import Path
 
+import requests
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
-# ---------------------------- Page configuration ----------------------------
-st.set_page_config(page_title="Textify AI", page_icon="✍️", layout="wide")
+# ---------------------------- Configuration ---------------------------------
 
-# ------------------------------- Styling ------------------------------------
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Kalam:wght@300;400;700&family=Patrick+Hand&display=swap');
-.stApp { background: #f7f8fc; }
-.block-container { padding-top: 1.8rem; padding-bottom: 3rem; max-width: 1250px; }
-.hero { padding: 1.5rem 1.6rem; border: 1px solid #e4e7ef; border-radius: 18px; background: #ffffff; margin-bottom: 1.25rem; }
-.hero h1 { margin: 0; color: #172033; font-size: 2.1rem; }
-.hero p { color: #647084; margin: .35rem 0 0; }
-div.stButton > button, div.stDownloadButton > button { background: #263b80 !important; color: #ffffff !important; border: 1px solid #263b80 !important; border-radius: 10px !important; font-weight: 600 !important; }
-div.stButton > button:hover, div.stDownloadButton > button:hover { background: #1b2c65 !important; color: #ffffff !important; border-color: #1b2c65 !important; }
-[data-testid="stSidebar"] { background: #ffffff; }
-.small-note { color: #687386; font-size: .9rem; }
-</style>
-""", unsafe_allow_html=True)
+ROOT = Path(__file__).parent
+FONT_DIR = ROOT / "assets" / "fonts"
+FONT_DIR.mkdir(parents=True, exist_ok=True)
 
-st.markdown("""
-<div class="hero">
-  <h1>✍️ Textify AI</h1>
-  <p>Turn your text into neat, handwriting-style pages — then preview and export as a PDF.</p>
-</div>
-""", unsafe_allow_html=True)
-
-# ------------------------------ Constants -----------------------------------
-PAPER_SIZES = {
-    "A4": (794, 1123),
-    "Letter": (816, 1056),
-    "A5": (559, 794),
-}
-INK_COLORS = {
-    "Blue": (35, 78, 160),
-    "Black": (35, 38, 45),
-    "Dark Green": (30, 100, 70),
-    "Purple": (105, 62, 150),
-}
-PAPER_COLORS = {
-    "White": (255, 255, 255),
-    "Cream": (255, 251, 235),
-    "Light Yellow": (255, 255, 220),
+FONT_URLS = {
+    "Caveat": "https://raw.githubusercontent.com/google/fonts/main/ofl/caveat/Caveat%5Bwght%5D.ttf",
+    "Patrick Hand": "https://raw.githubusercontent.com/google/fonts/main/ofl/patrickhand/PatrickHand-Regular.ttf",
+    "Kalam": "https://raw.githubusercontent.com/google/fonts/main/ofl/kalam/Kalam-Regular.ttf",
 }
 
-# PIL needs actual font files. These common local fonts are used when present.
-# You can place handwriting .ttf files in a local "fonts" folder to use them.
-FONT_FILES = {
-    "Caveat": ["fonts/Caveat-Regular.ttf", "Caveat-Regular.ttf"],
-    "Patrick Hand": ["fonts/PatrickHand-Regular.ttf", "PatrickHand-Regular.ttf"],
-    "Kalam": ["fonts/Kalam-Regular.ttf", "Kalam-Regular.ttf"],
-    "DejaVu Sans": ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "C:/Windows/Fonts/arial.ttf"],
+FONT_PATHS = {
+    name: FONT_DIR / (name.lower().replace(" ", "-") + ".ttf")
+    for name in FONT_URLS
 }
 
+PAGE_SIZES = {
+    "A4": (1240, 1754),
+    "Letter": (1275, 1650),
+    "A5": (874, 1240),
+}
 
-def get_font(font_name: str, size: int):
-    candidates = FONT_FILES.get(font_name, []) + FONT_FILES["DejaVu Sans"]
-    for candidate in candidates:
+INKS = {
+    "Blue": "#17458A",
+    "Black": "#252525",
+    "Dark green": "#24533F",
+    "Purple": "#594080",
+}
+
+PAPERS = {
+    "Warm white": "#FFFEF8",
+    "Bright white": "#FFFFFF",
+    "Cream": "#FFF8E8",
+}
+
+MAX_AI_CHARACTERS = 30000
+
+
+def secret(name, default=""):
+    """Read a value from environment variables or Streamlit Secrets."""
+    value = os.getenv(name, "")
+    if value:
+        return value
+
+    try:
+        return str(st.secrets.get(name, default))
+    except Exception:
+        return default
+
+
+def ensure_font(name):
+    """Download the selected handwriting font if it is not available locally."""
+    path = FONT_PATHS[name]
+
+    if path.exists() and path.stat().st_size > 5000:
+        return True
+
+    try:
+        response = requests.get(FONT_URLS[name], timeout=15)
+        response.raise_for_status()
+
+        if len(response.content) > 5000:
+            path.write_bytes(response.content)
+            return True
+
+    except requests.RequestException:
+        pass
+
+    return False
+
+
+def font_for(size, name):
+    """Load a font, falling back to a system font if necessary."""
+    path = FONT_PATHS.get(name)
+
+    if path and path.exists():
         try:
-            if Path(candidate).exists():
-                return ImageFont.truetype(candidate, size=size)
-        except Exception:
+            return ImageFont.truetype(str(path), size)
+        except OSError:
             pass
+
+    for fallback in ("DejaVuSans.ttf", "arial.ttf"):
+        try:
+            return ImageFont.truetype(fallback, size)
+        except OSError:
+            continue
+
     return ImageFont.load_default()
 
 
-def text_width(draw, text, font, letter_spacing=0):
+def text_width(draw, text, font, spacing=0):
     if not text:
         return 0
-    if letter_spacing == 0:
+
+    if spacing == 0:
         return draw.textlength(text, font=font)
-    return sum(draw.textlength(char, font=font) for char in text) + letter_spacing * (len(text) - 1)
+
+    return sum(
+        draw.textlength(character, font=font)
+        for character in text
+    ) + spacing * (len(text) - 1)
 
 
-def draw_spaced_text(draw, xy, text, font, fill, letter_spacing=0):
+def draw_spaced(draw, xy, text, font, fill, spacing=0):
     x, y = xy
-    if letter_spacing == 0:
+
+    if spacing == 0:
         draw.text((x, y), text, font=font, fill=fill)
         return
-    for char in text:
-        draw.text((x, y), char, font=font, fill=fill)
-        x += draw.textlength(char, font=font) + letter_spacing
+
+    for character in text:
+        draw.text((x, y), character, font=font, fill=fill)
+        x += draw.textlength(character, font=font) + spacing
 
 
-def wrap_paragraph(draw, paragraph, font, max_width, letter_spacing=0):
-    """Wrap text by measured pixel width, preserving paragraph breaks."""
-    words = paragraph.split()
+def wrap_line(
+    draw,
+    text,
+    font,
+    max_width,
+    letter_spacing=0,
+    extra_word_space=0,
+):
+    """Wrap a paragraph to fit within the page's printable width."""
+    words = text.split()
+
     if not words:
         return [""]
-    lines, current = [], ""
+
+    lines = []
+    current = ""
+
     for word in words:
-        candidate = word if not current else current + " " + word
+        candidate = (
+            word
+            if not current
+            else current + (" " * (1 + extra_word_space)) + word
+        )
+
         if text_width(draw, candidate, font, letter_spacing) <= max_width:
             current = candidate
-            continue
-        if current:
-            lines.append(current)
-        # Split unusually long words so they don't run off the page.
-        if text_width(draw, word, font, letter_spacing) > max_width:
-            part = ""
-            for char in word:
-                test = part + char
-                if part and text_width(draw, test, font, letter_spacing) > max_width:
-                    lines.append(part)
-                    part = char
-                else:
-                    part = test
-            current = part
         else:
-            current = word
+            if current:
+                lines.append(current)
+
+            # Handle unusually long words without overflowing the page.
+            if text_width(draw, word, font, letter_spacing) > max_width:
+                part = ""
+
+                for character in word:
+                    test = part + character
+
+                    if (
+                        part
+                        and text_width(draw, test, font, letter_spacing)
+                        > max_width
+                    ):
+                        lines.append(part)
+                        part = character
+                    else:
+                        part = test
+
+                current = part
+            else:
+                current = word
+
     if current:
         lines.append(current)
+
     return lines
 
 
-def render_pages(text, options):
-    page_w, page_h = PAPER_SIZES[options["page_size"]]
-    if options["orientation"] == "Landscape":
-        page_w, page_h = page_h, page_w
+def organize_with_ai(text, style, task):
+    """Generate study notes using the owner's Gemini API key."""
+    api_key = secret("GEMINI_API_KEY").strip()
+    model = secret("GEMINI_MODEL", "gemini-2.5-flash").strip()
 
-    margin_left = int(options["margin_left"] * page_w / 100)
-    margin_right = int(options["margin_right"] * page_w / 100)
-    margin_top = int(options["margin_top"] * page_h / 100)
-    margin_bottom = int(options["margin_bottom"] * page_h / 100)
-    content_w = max(100, page_w - margin_left - margin_right)
-    content_bottom = page_h - margin_bottom
+    if not api_key:
+        raise RuntimeError(
+            "AI Smart Notes is not configured. "
+            "The app owner must add GEMINI_API_KEY in Streamlit Secrets."
+        )
 
-    font_size = int(options["font_size"])
-    font = get_font(options["font"], font_size)
-    paper = PAPER_COLORS[options["paper_color"]]
-    ink = INK_COLORS[options["ink_color"]]
-    line_gap = int(font_size * (options["line_spacing"] / 100))
-    line_height = font_size + line_gap
-    letter_spacing = int(options["letter_spacing"])
-    rng = random.Random(27)  # stable preview/export variation
+    if not text.strip():
+        raise RuntimeError("Please enter some text first.")
 
-    paragraphs = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    pages, current_y = [], margin_top
-    page = Image.new("RGB", (page_w, page_h), paper)
-    draw = ImageDraw.Draw(page)
+    if len(text) > MAX_AI_CHARACTERS:
+        raise RuntimeError(
+            f"Please keep your text under {MAX_AI_CHARACTERS:,} characters "
+            "for AI note generation."
+        )
 
-    def draw_paper(d):
-        style = options["paper_style"]
-        line_color = (202, 218, 239) if options["paper_color"] != "White" else (211, 225, 243)
-        if style in ("Ruled", "Margin line"):
-            y = margin_top
-            while y < page_h - margin_bottom:
-                d.line((0, y, page_w, y), fill=line_color, width=1)
-                y += max(18, int(options["rule_spacing"]))
-        elif style == "Grid":
-            spacing = max(18, int(options["rule_spacing"]))
-            for x in range(0, page_w, spacing):
-                d.line((x, 0, x, page_h), fill=(225, 229, 235), width=1)
-            for y in range(0, page_h, spacing):
-                d.line((0, y, page_w, y), fill=(225, 229, 235), width=1)
-        elif style == "Dotted":
-            spacing = max(18, int(options["rule_spacing"]))
-            for y in range(spacing, page_h, spacing):
-                for x in range(spacing, page_w, spacing):
-                    d.ellipse((x, y, x + 1, y + 1), fill=(190, 201, 216))
-        if style == "Margin line":
-            x = margin_left - 14
-            d.line((x, 0, x, page_h), fill=(226, 130, 140), width=2)
+    instructions = {
+        "Simple explanations": (
+            "Explain the material in simple, beginner-friendly language. "
+            "Preserve the original meaning and important details."
+        ),
+        "Exam revision notes": (
+            "Create organized exam revision notes with headings, definitions, "
+            "important facts, and concise bullet points."
+        ),
+        "Key concepts and definitions": (
+            "Extract and explain the main concepts, terms, and definitions. "
+            "Preserve important facts and equations."
+        ),
+        "Concise outline": (
+            "Create a concise, well-structured outline using headings "
+            "and short bullet points."
+        ),
+    }
 
-    draw_paper(draw)
+    task_instructions = {
+        "Create concise study notes": (
+            "Create clear, concise study notes that are easy to revise."
+        ),
+        "Summarize": (
+            "Summarize the supplied material accurately without losing "
+            "its main ideas or important details."
+        ),
+        "Make key bullet points": (
+            "Organize the most important information into clear bullet points."
+        ),
+        "Simplify the language": (
+            "Rewrite the material in simple, beginner-friendly language "
+            "without changing its meaning."
+        ),
+    }
 
-    for p_index, paragraph in enumerate(paragraphs):
-        wrapped = wrap_paragraph(draw, paragraph, font, content_w, letter_spacing)
-        if paragraph == "":
-            wrapped = [""]
-        for line in wrapped:
-            if current_y + line_height > content_bottom:
-                pages.append(page)
-                page = Image.new("RGB", (page_w, page_h), paper)
-                draw = ImageDraw.Draw(page)
-                draw_paper(draw)
-                current_y = margin_top
-            if line:
-                offset = rng.randint(-1, 1) if options["variation"] else 0
-                draw_spaced_text(draw, (margin_left, current_y + offset), line, font, ink, letter_spacing)
-            current_y += line_height
-        # Add a small gap between paragraphs, without making empty lines huge.
-        if p_index < len(paragraphs) - 1:
-            current_y += int(font_size * 0.25)
+    system_instruction = (
+        "You are Textify AI, an educational study-notes assistant. "
+        "Use only information supported by the supplied source. "
+        "Do not invent facts, definitions, quotations, or examples and "
+        "present them as if they came from the source. Preserve important "
+        "names, facts, formulas, and caveats. Use plain text with clear "
+        "headings and concise bullet points. Avoid Markdown tables. "
+        f"{instructions[style]} {task_instructions[task]}"
+    )
 
-    pages.append(page)
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/openai/"
+        "chat/completions"
+    )
 
-    # Small footer branding, kept subtle and within the bottom margin.
-    if options["footer"]:
-        for i, pg in enumerate(pages):
-            d = ImageDraw.Draw(pg)
-            footer_font = get_font("DejaVu Sans", 12)
-            label = f"Created with Textify AI  •  Page {i + 1}"
-            d.text((page_w - margin_right - d.textlength(label, font=footer_font), page_h - max(24, margin_bottom // 2)),
-                   label, font=footer_font, fill=(125, 130, 140))
+    try:
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_instruction,
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            "Create notes from the following source material. "
+                            "Do not add unsupported information.\n\n"
+                            f"SOURCE MATERIAL:\n{text}"
+                        ),
+                    },
+                ],
+                "temperature": 0.2,
+            },
+            timeout=90,
+        )
+
+    except requests.Timeout:
+        raise RuntimeError(
+            "The AI request timed out. Please try again with shorter text."
+        )
+
+    except requests.RequestException:
+        raise RuntimeError(
+            "Could not connect to Gemini. Check your internet connection "
+            "and try again."
+        )
+
+    if not response.ok:
+        if response.status_code == 401 or response.status_code == 403:
+            raise RuntimeError(
+                "Gemini rejected the API key. The app owner should check "
+                "GEMINI_API_KEY in Streamlit Secrets."
+            )
+
+        if response.status_code == 429:
+            raise RuntimeError(
+                "The Gemini API quota or rate limit has been reached. "
+                "Please wait before trying again."
+            )
+
+        if response.status_code == 400 or response.status_code == 404:
+            raise RuntimeError(
+                "Gemini could not process this request. The app owner should "
+                "check the configured model name and API access."
+            )
+
+        raise RuntimeError(
+            f"Gemini request failed ({response.status_code}). "
+            "Please try again later."
+        )
+
+    try:
+        result = response.json()["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError, ValueError):
+        raise RuntimeError(
+            "Gemini returned an unexpected response. Please try again."
+        )
+
+    if not isinstance(result, str) or not result.strip():
+        raise RuntimeError("Gemini returned empty notes. Please try again.")
+
+    return result.strip()
+
+
+def render_pages(
+    text,
+    page_name,
+    orientation,
+    paper_style,
+    paper_color,
+    ink,
+    font_name,
+    font_size,
+    line_gap,
+    letter_spacing,
+    word_spacing,
+    variation,
+    margin_pct,
+):
+    """Render text into customizable handwriting-style notebook pages."""
+    width, height = PAGE_SIZES[page_name]
+
+    if orientation == "Landscape":
+        width, height = height, width
+
+    margin_left = int(width * margin_pct / 100)
+    margin_right = int(width * margin_pct / 100)
+    margin_top = int(height * margin_pct / 100) + 24
+    margin_bottom = int(height * margin_pct / 100)
+
+    if paper_style in ("Ruled notebook", "Grid", "Margin line"):
+        margin_left += 32
+
+    content_width = max(100, width - margin_left - margin_right)
+    content_bottom = height - margin_bottom
+
+    font = font_for(font_size, font_name)
+    probe = ImageDraw.Draw(Image.new("RGB", (10, 10), "white"))
+
+    lines = []
+
+    for paragraph in (
+        text.replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .split("\n")
+    ):
+        if not paragraph.strip():
+            lines.append("")
+        else:
+            lines.extend(
+                wrap_line(
+                    probe,
+                    paragraph.rstrip(),
+                    font,
+                    content_width,
+                    letter_spacing,
+                    word_spacing,
+                )
+            )
+
+    line_height = max(1, int(line_gap))
+    usable_height = height - margin_top - margin_bottom - 60
+    capacity = max(1, usable_height // line_height)
+
+    chunks = [
+        lines[index:index + capacity]
+        for index in range(0, len(lines), capacity)
+    ] or [[]]
+
+    pages = []
+    rng = random.Random(27)
+
+    for page_number, page_lines in enumerate(chunks, 1):
+        image = Image.new("RGB", (width, height), paper_color)
+        draw = ImageDraw.Draw(image)
+
+        if paper_style == "Ruled notebook":
+            for y in range(margin_top - 8, height - margin_bottom, line_height):
+                draw.line(
+                    (30, y, width - 30, y),
+                    fill="#D8E6F3",
+                    width=1,
+                )
+
+            draw.line(
+                (margin_left - 32, 0, margin_left - 32, height),
+                fill="#E7A3A3",
+                width=2,
+            )
+
+        elif paper_style == "Grid":
+            for x in range(30, width, 32):
+                draw.line(
+                    (x, 0, x, height),
+                    fill="#E7EDF2",
+                    width=1,
+                )
+
+            for y in range(30, height, 32):
+                draw.line(
+                    (0, y, width, y),
+                    fill="#E7EDF2",
+                    width=1,
+                )
+
+            draw.line(
+                (margin_left - 32, 0, margin_left - 32, height),
+                fill="#E7A3A3",
+                width=2,
+            )
+
+        elif paper_style == "Dotted":
+            for x in range(30, width, 30):
+                for y in range(30, height, 30):
+                    draw.ellipse(
+                        (x, y, x + 2, y + 2),
+                        fill="#CBD5DF",
+                    )
+
+        elif paper_style == "Margin line":
+            draw.line(
+                (margin_left - 32, 55, margin_left - 32, height - 55),
+                fill="#E7A3A3",
+                width=2,
+            )
+
+        y = margin_top
+
+        for line in page_lines:
+            if not line:
+                y += line_height // 2
+                continue
+
+            bbox = draw.textbbox((0, 0), line, font=font)
+            actual_height = max(font_size, bbox[3] - bbox[1])
+
+            if y + actual_height > content_bottom - 35:
+                break
+
+            x = margin_left + (
+                rng.randint(-3, 4) if variation else 0
+            )
+            adjusted_y = y + (
+                rng.randint(-2, 2) if variation else 0
+            )
+
+            draw_spaced(
+                draw,
+                (x, adjusted_y),
+                line,
+                font,
+                ink,
+                letter_spacing,
+            )
+
+            y += line_height
+
+        footer_font = font_for(14, "Patrick Hand")
+        footer_label = f"Textify AI • Page {page_number}"
+
+        draw.text(
+            (
+                width - margin_right - 220,
+                height - max(28, margin_bottom // 2),
+            ),
+            footer_label,
+            font=footer_font,
+            fill="#7B8490",
+        )
+
+        pages.append(image)
+
     return pages
 
 
-def make_pdf(pages):
+def to_pdf(pages):
+    """Convert rendered pages into a multi-page PDF."""
+    if not pages:
+        raise ValueError("No pages to export.")
+
     output = io.BytesIO()
     rgb_pages = [page.convert("RGB") for page in pages]
-    rgb_pages[0].save(output, format="PDF", save_all=True, append_images=rgb_pages[1:], resolution=150)
+
+    rgb_pages[0].save(
+        output,
+        format="PDF",
+        save_all=True,
+        append_images=rgb_pages[1:],
+        resolution=150,
+    )
+
     output.seek(0)
     return output.getvalue()
 
 
-def make_text_download(text):
-    return text.encode("utf-8")
+# ---------------------------- Page configuration ----------------------------
 
-# ---------------------------------- UI --------------------------------------
-with st.sidebar:
-    st.header("Page & handwriting")
-    font_choice = st.selectbox("Handwriting font", ["Caveat", "Patrick Hand", "Kalam", "DejaVu Sans"])
-    font_size = st.slider("Font size", 16, 42, 25)
-    line_spacing = st.slider("Line spacing", 0, 100, 40, help="Higher values add more space between lines.")
-    letter_spacing = st.slider("Letter spacing", 0, 4, 0)
-    variation = st.checkbox("Slight writing variation", value=True)
-
-    st.divider()
-    paper_style = st.selectbox("Paper style", ["Ruled", "Plain", "Grid", "Dotted", "Margin line"])
-    paper_color = st.selectbox("Paper color", list(PAPER_COLORS.keys()))
-    rule_spacing = st.slider("Rule / grid spacing", 20, 48, 32)
-    ink_color = st.selectbox("Ink color", list(INK_COLORS.keys()))
-
-    st.divider()
-    page_size = st.selectbox("Page size", list(PAPER_SIZES.keys()), index=0)
-    orientation = st.selectbox("Page orientation", ["Portrait", "Landscape"])
-    margin_left = st.slider("Left margin (%)", 5, 18, 10)
-    margin_right = st.slider("Right margin (%)", 5, 18, 9)
-    margin_top = st.slider("Top margin (%)", 5, 18, 8)
-    margin_bottom = st.slider("Bottom margin (%)", 5, 18, 8)
-    footer = st.checkbox("Add Textify AI footer", value=True)
-
-st.subheader("1. Enter your text")
-if "source_text" not in st.session_state:
-    st.session_state.source_text = ""
-source_text = st.text_area(
-    "Type or paste your text below",
-    key="source_text",
-    height=260,
-    placeholder="Start typing or paste your notes here...",
-    label_visibility="collapsed",
+st.set_page_config(
+    page_title="Textify AI",
+    page_icon="✍️",
+    layout="wide",
 )
 
-col_a, col_b = st.columns([1, 1])
-with col_a:
-    if st.button("Clear text", use_container_width=True):
-        st.session_state.source_text = ""
-        st.rerun()
-with col_b:
-    st.download_button(
-        "Download original text (.txt)",
-        data=make_text_download(source_text),
-        file_name="textify_ai_text.txt",
-        mime="text/plain",
-        use_container_width=True,
-        disabled=not source_text.strip(),
+st.markdown(
+    """
+<style>
+.stApp {background:#F4F7FB;color:#172033}
+.block-container {max-width:1250px;padding-top:1.5rem;padding-bottom:3rem}
+.hero {padding:1.5rem 1.7rem;border:1px solid #DCE5F0;border-radius:20px;
+background:linear-gradient(135deg,#fff,#EEF4FF);margin-bottom:1.2rem}
+.hero h1 {margin:0;color:#172033;font-size:2.35rem;letter-spacing:-.03em}
+.hero p {margin:.45rem 0 0;color:#52627A;font-size:1rem}
+.stApp label,.stApp [data-testid="stWidgetLabel"] p {
+    color:#172033!important;font-weight:600!important;font-size:.94rem!important
+}
+.stApp [data-testid="stCaptionContainer"] {
+    color:#52627A!important;font-size:.87rem!important
+}
+.stTextArea textarea {
+    background:#fff!important;color:#172033!important;
+    border:1px solid #C9D5E4!important;border-radius:12px!important
+}
+.stButton > button,
+.stDownloadButton > button {
+    border-radius:10px!important;
+    min-height:2.75rem!important;
+    font-weight:650!important;
+    background:#FFFFFF!important;
+    color:#24324A!important;
+    border:1px solid #C8D4E4!important;
+    opacity:1!important;
+    box-shadow:0 1px 2px rgba(15,23,42,.06)!important
+}
+.stButton > button p,
+.stDownloadButton > button p,
+.stButton > button span,
+.stDownloadButton > button span {
+    color:#24324A!important;opacity:1!important
+}
+.stButton > button:hover,
+.stDownloadButton > button:hover {
+    background:#EAF1FB!important;color:#15243B!important;
+    border-color:#8CA7CB!important
+}
+.stButton > button:focus,
+.stDownloadButton > button:focus {
+    outline:2px solid #6C91C5!important;outline-offset:2px!important
+}
+.stButton > button:disabled,
+.stDownloadButton > button:disabled {
+    background:#E9EEF5!important;color:#64748B!important;
+    border-color:#D5DEEA!important;opacity:1!important
+}
+div[data-testid="stMetric"] {
+    background:#fff;border:1px solid #DFE7F1;
+    padding:.8rem;border-radius:12px
+}
+</style>
+
+<div class="hero">
+    <h1>✍️ Textify AI</h1>
+    <p>Turn study material into customizable handwriting-style pages.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+
+# -------------------------------- Sidebar ------------------------------------
+
+with st.sidebar:
+    st.header("Textify AI")
+    st.caption("Create, preview, and export notebook-style notes.")
+
+    st.markdown(
+        "**How it works**\n"
+        "1. Paste or type your text.\n"
+        "2. Optionally organize it with AI.\n"
+        "3. Customize your pages.\n"
+        "4. Generate and download a PDF."
     )
 
-# Optional AI Smart Notes. Uses the owner's private Gemini API key from Streamlit Secrets.
-with st.expander("Optional: AI Smart Notes", expanded=False):
-    st.caption("Generate study notes, summaries, key points, or simpler explanations with Gemini.")
-    ai_task = st.selectbox(
-        "What should AI do?",
-        ["Create concise study notes", "Summarize", "Make key bullet points", "Simplify the language"],
+    st.info(
+        "Handwriting fonts change the appearance of text; "
+        "they do not reproduce real pen strokes."
     )
-    if st.button("Generate AI notes", disabled=not source_text.strip(), use_container_width=True):
-        if len(source_text) > 30000:
-            st.warning("Please keep the text under 30,000 characters for AI note generation.")
-        else:
-            try:
-                import requests
 
-                api_key = st.secrets.get("GEMINI_API_KEY", "").strip()
-                model_name = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
-                if not api_key:
-                    st.error("AI Smart Notes is not configured yet. The app owner must add GEMINI_API_KEY in Streamlit Secrets.")
-                else:
-                    instruction = {
-                        "Create concise study notes": "Create clear, concise study notes with headings and key concepts.",
-                        "Summarize": "Summarize the text accurately and concisely.",
-                        "Make key bullet points": "Turn the text into well-organized key bullet points.",
-                        "Simplify the language": "Rewrite the text in simple, beginner-friendly language without changing its meaning.",
-                    }[ai_task]
-                    with st.spinner("Gemini is preparing your notes..."):
-                        response = requests.post(
-                            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-                            headers={
-                                "Authorization": f"Bearer {api_key}",
-                                "Content-Type": "application/json",
-                            },
-                            json={
-                                "model": model_name,
-                                "messages": [
-                                    {"role": "system", "content": instruction + " Preserve important facts and do not invent information."},
-                                    {"role": "user", "content": source_text},
-                                ],
-                                "temperature": 0.3,
-                            },
-                            timeout=60,
-                        )
-                        if not response.ok:
-                            # Avoid showing any credentials in errors; provider response text is truncated.
-                            raise RuntimeError(f"Gemini request failed ({response.status_code}). Check the model, API key, or quota in Google AI Studio.")
-                        result = response.json()["choices"][0]["message"]["content"]
-                        if not isinstance(result, str) or not result.strip():
-                            raise RuntimeError("Gemini returned empty notes. Please try again.")
-                        st.session_state["ai_notes_result"] = result.strip()
-                    st.success("AI notes generated. Review them below before using them.")
-            except Exception as exc:
-                st.error(f"Could not generate AI notes: {exc}")
-    if st.session_state.get("ai_notes_result"):
-        st.text_area(
-            "Generated notes",
-            key="ai_notes_result_display",
-            value=st.session_state["ai_notes_result"],
-            height=200,
+
+# ------------------------------ Session state --------------------------------
+
+if "source_text" not in st.session_state:
+    st.session_state.source_text = (
+        "Artificial Intelligence\n\n"
+        "Artificial Intelligence (AI) is a field of computer science focused "
+        "on building systems that perform tasks associated with human "
+        "intelligence, such as learning, reasoning, and recognizing patterns."
+        "\n\nMain areas\n"
+        "• Machine Learning: systems learn patterns from data.\n"
+        "• Computer Vision: systems interpret images and video.\n"
+        "• Natural Language Processing: systems work with human language."
+        "\n\nReplace this sample with your own study material."
+    )
+
+if "pending_source_text" in st.session_state:
+    st.session_state.source_text = st.session_state.pop(
+        "pending_source_text"
+    )
+
+
+# ------------------------------- Main layout ---------------------------------
+
+left, right = st.columns([1.08, 0.92], gap="large")
+
+with left:
+    st.subheader("01 · Your content")
+
+    source_text = st.text_area(
+        "Study material",
+        key="source_text",
+        height=330,
+        max_chars=100000,
+        placeholder="Paste your study material here...",
+    )
+
+    st.caption(f"{len(source_text):,} characters")
+
+    with st.expander("Optional AI Smart Notes", expanded=False):
+        st.caption(
+            "Generate study notes, summaries, key points, or simpler "
+            "explanations using Textify AI's built-in Gemini connection."
         )
-        if st.button("Use AI notes as source text", use_container_width=True):
-            st.session_state.source_text = st.session_state["ai_notes_result"]
-            st.rerun()
 
-st.subheader("2. Preview and export")
-if not source_text.strip():
-    st.info("Enter some text above to preview your handwriting-style pages.")
-else:
-    options = {
-        "font": font_choice,
-        "font_size": font_size,
-        "line_spacing": line_spacing,
-        "letter_spacing": letter_spacing,
-        "variation": variation,
-        "paper_style": paper_style,
-        "paper_color": paper_color,
-        "rule_spacing": rule_spacing,
-        "ink_color": ink_color,
-        "page_size": page_size,
-        "orientation": orientation,
-        "margin_left": margin_left,
-        "margin_right": margin_right,
-        "margin_top": margin_top,
-        "margin_bottom": margin_bottom,
-        "footer": footer,
-    }
-    pages = render_pages(source_text, options)
-    st.caption(f"Preview: {len(pages)} page(s)  •  {page_size} {orientation.lower()}")
-    preview_col, details_col = st.columns([1.2, 1])
-    with preview_col:
-        st.image(pages[0], caption="Page 1 preview", use_container_width=True)
-    with details_col:
-        st.markdown("#### Your settings")
-        st.write(f"**Font:** {font_choice}")
-        st.write(f"**Ink:** {ink_color}")
-        st.write(f"**Paper:** {paper_style} · {paper_color}")
-        st.write(f"**Page:** {page_size} · {orientation}")
-        st.write(f"**Pages:** {len(pages)}")
-        st.markdown("<p class='small-note'>PDF pages are rendered as page images, so text in the exported PDF may not be selectable or searchable.</p>", unsafe_allow_html=True)
-        st.download_button(
-            "Download handwritten PDF",
-            data=make_pdf(pages),
-            file_name="textify_ai_handwriting.pdf",
-            mime="application/pdf",
+        style = st.selectbox(
+            "Notes style",
+            [
+                "Simple explanations",
+                "Exam revision notes",
+                "Key concepts and definitions",
+                "Concise outline",
+            ],
+        )
+
+        ai_task = st.selectbox(
+            "What should AI do?",
+            [
+                "Create concise study notes",
+                "Summarize",
+                "Make key bullet points",
+                "Simplify the language",
+            ],
+        )
+
+        if st.button(
+            "Generate AI notes",
             use_container_width=True,
+            disabled=not source_text.strip(),
+        ):
+            if len(source_text) > MAX_AI_CHARACTERS:
+                st.warning(
+                    f"Please keep your text under "
+                    f"{MAX_AI_CHARACTERS:,} characters for AI note generation."
+                )
+            else:
+                try:
+                    with st.spinner("Gemini is preparing your notes..."):
+                        st.session_state.ai_notes = organize_with_ai(
+                            source_text,
+                            style,
+                            ai_task,
+                        )
+
+                    st.success("AI notes generated. Review them below.")
+
+                except Exception as error:
+                    st.error(str(error))
+
+        if "ai_notes" in st.session_state:
+            edited_notes = st.text_area(
+                "Review and edit AI notes",
+                value=st.session_state.ai_notes,
+                height=220,
+                key="ai_notes_editor",
+            )
+
+            if st.button(
+                "Use AI notes as content",
+                use_container_width=True,
+            ):
+                st.session_state.pending_source_text = edited_notes
+                st.rerun()
+
+
+with right:
+    st.subheader("02 · Customize your pages")
+    st.caption("Each setting changes the generated output.")
+
+    with st.container(border=True):
+        paper_style = st.selectbox(
+            "Paper style",
+            [
+                "Ruled notebook",
+                "Plain paper",
+                "Grid",
+                "Dotted",
+                "Margin line",
+            ],
         )
+
+        paper_color = st.selectbox(
+            "Paper color",
+            list(PAPERS.keys()),
+        )
+
+        font_name = st.selectbox(
+            "Handwriting font",
+            list(FONT_URLS.keys()),
+            help=(
+                "Fonts download on first use when internet access "
+                "is available."
+            ),
+        )
+
+        page_name = st.selectbox(
+            "Page size",
+            list(PAGE_SIZES.keys()),
+        )
+
+        orientation = st.selectbox(
+            "Page orientation",
+            ["Portrait", "Landscape"],
+            index=0,
+            help=(
+                "Choose Portrait for a vertical page or Landscape "
+                "for a horizontal page."
+            ),
+        )
+
+        st.markdown("**Writing size**")
+
+        font_size = st.slider(
+            "Text size (pixels)",
+            20,
+            54,
+            34,
+        )
+
+        st.markdown("**Line spacing**")
+
+        line_gap = st.slider(
+            "Distance between lines",
+            32,
+            78,
+            56,
+            step=2,
+        )
+
+        with st.expander("Advanced typography and layout"):
+            letter_spacing = st.slider(
+                "Letter spacing",
+                -1,
+                4,
+                0,
+            )
+
+            word_spacing = st.slider(
+                "Extra word spacing",
+                0,
+                3,
+                0,
+            )
+
+            margin_pct = st.slider(
+                "Page margins",
+                5,
+                12,
+                8,
+            )
+
+            variation = st.checkbox(
+                "Add natural layout variation",
+                value=True,
+                help=(
+                    "Slightly varies line placement. Turn off "
+                    "for consistent alignment."
+                ),
+            )
+
+        ink_label = st.radio(
+            "Ink color",
+            list(INKS.keys()),
+            horizontal=True,
+        )
+
+        ink = INKS[ink_label]
+
+        st.markdown(
+            f"""
+<div style="display:flex;align-items:center;gap:10px;
+padding:10px 12px;border:1px solid #DCE5F0;border-radius:10px;
+background:#F8FAFD;margin-top:4px;">
+<span style="width:18px;height:18px;border-radius:50%;
+background:{ink};border:2px solid white;
+box-shadow:0 0 0 1px #AAB6C8;display:inline-block"></span>
+<span style="color:#26344B">Selected ink: <b>{ink_label}</b></span>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        st.caption(
+            "A handwriting font changes text appearance; "
+            "it does not simulate real pen strokes."
+        )
+
+
+# --------------------------- Generate notebook pages -------------------------
 
 st.divider()
-st.caption("Textify AI · Handwriting-style rendering, not a scan of real handwriting.")
+
+go, hint = st.columns([1, 1.05], vertical_alignment="center")
+
+with go:
+    generate = st.button(
+        "✨ Generate notebook pages",
+        type="primary",
+        use_container_width=True,
+    )
+
+with hint:
+    st.caption(
+        "Your original text is used unless you replace it "
+        "with reviewed AI notes."
+    )
+
+
+if generate:
+    if not source_text.strip():
+        st.error("Add some text before generating.")
+
+    else:
+        with st.spinner("Preparing font and rendering pages..."):
+            ready = ensure_font(font_name)
+
+            if not ready:
+                st.warning(
+                    f"Could not download {font_name}; "
+                    "a fallback font will be used."
+                )
+
+            try:
+                pages = render_pages(
+                    source_text,
+                    page_name,
+                    orientation,
+                    paper_style,
+                    PAPERS[paper_color],
+                    ink,
+                    font_name,
+                    font_size,
+                    line_gap,
+                    letter_spacing,
+                    word_spacing,
+                    variation,
+                    margin_pct,
+                )
+
+                st.session_state.pages = pages
+                st.session_state.pdf = to_pdf(pages)
+
+                st.session_state.render_meta = {
+                    "paper": paper_style,
+                    "characters": len(source_text),
+                }
+
+                st.success(
+                    f"Generated {len(pages)} page(s). "
+                    "Review before exporting."
+                )
+
+            except Exception as error:
+                st.error(f"Could not generate pages: {error}")
+
+
+# ------------------------------ Preview & export -----------------------------
+
+if "pages" in st.session_state:
+    pages = st.session_state.pages
+    meta = st.session_state.get("render_meta", {})
+
+    st.divider()
+    st.subheader("03 · Preview and export")
+
+    metric_a, metric_b, metric_c = st.columns(3)
+
+    metric_a.metric("Pages generated", len(pages))
+
+    metric_b.metric(
+        "Characters rendered",
+        f"{meta.get('characters', 0):,}",
+    )
+
+    metric_c.metric(
+        "Paper style",
+        meta.get("paper", "—"),
+    )
+
+    st.caption(
+        "Previewing up to the first three pages. "
+        "The PDF includes every generated page."
+    )
+
+    preview_count = min(len(pages), 3)
+
+    for start in range(0, preview_count, 2):
+        columns = st.columns(
+            min(2, preview_count - start)
+        )
+
+        for offset, column in enumerate(columns):
+            with column:
+                page_index = start + offset
+
+                st.image(
+                    pages[page_index],
+                    caption=f"Page {page_index + 1}",
+                    use_container_width=True,
+                )
+
+    if len(pages) > 3:
+        st.info(
+            f"{len(pages) - 3} additional page(s) "
+            "are included in the PDF."
+        )
+
+    st.download_button(
+        "⬇️ Download complete PDF",
+        st.session_state.pdf,
+        file_name="textify_ai_notes.pdf",
+        mime="application/pdf",
+        type="primary",
+        use_container_width=True,
+    )
+
+
+# ---------------------------------- Footer -----------------------------------
+
+st.divider()
+
+st.caption(
+    "AI-generated notes should be reviewed before use. "
+    "Handwriting-style pages are rendered images, so PDF text may not "
+    "be selectable or searchable."
+)
