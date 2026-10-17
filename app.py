@@ -1,3 +1,4 @@
+
 import io
 import random
 from pathlib import Path
@@ -6,7 +7,10 @@ import requests
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 
-# ---------------------------- Configuration ---------------------------------
+# ============================================================
+# TEXTIFY AI — Text to Handwriting
+# Responsive UI for phones, tablets, laptops, and desktops
+# ============================================================
 
 ROOT = Path(__file__).parent
 FONT_DIR = ROOT / "assets" / "fonts"
@@ -42,31 +46,31 @@ PAPERS = {
     "Cream": "#FFF8E8",
 }
 
+MAX_CHARS = 100000
 
+
+# --------------------------- Font handling ---------------------------
 
 def ensure_font(name):
-    """Download the selected handwriting font if it is not available locally."""
     path = FONT_PATHS[name]
 
     if path.exists() and path.stat().st_size > 5000:
         return True
 
     try:
-        response = requests.get(FONT_URLS[name], timeout=15)
+        response = requests.get(FONT_URLS[name], timeout=12)
         response.raise_for_status()
 
         if len(response.content) > 5000:
             path.write_bytes(response.content)
             return True
-
-    except requests.RequestException:
+    except (requests.RequestException, OSError):
         pass
 
     return False
 
 
-def font_for(size, name):
-    """Load a font, falling back to a system font if necessary."""
+def get_font(size, name):
     path = FONT_PATHS.get(name)
 
     if path and path.exists():
@@ -84,41 +88,36 @@ def font_for(size, name):
     return ImageFont.load_default()
 
 
-def text_width(draw, text, font, spacing=0):
+# --------------------------- Text rendering ---------------------------
+
+def measure_text(draw, text, font, letter_spacing=0):
     if not text:
         return 0
 
-    if spacing == 0:
+    if letter_spacing == 0:
         return draw.textlength(text, font=font)
 
     return sum(
-        draw.textlength(character, font=font)
-        for character in text
-    ) + spacing * (len(text) - 1)
+        draw.textlength(char, font=font)
+        for char in text
+    ) + letter_spacing * (len(text) - 1)
 
 
-def draw_spaced(draw, xy, text, font, fill, spacing=0):
-    x, y = xy
+def draw_text(draw, position, text, font, color, letter_spacing=0):
+    x, y = position
 
-    if spacing == 0:
-        draw.text((x, y), text, font=font, fill=fill)
+    if letter_spacing == 0:
+        draw.text((x, y), text, font=font, fill=color)
         return
 
-    for character in text:
-        draw.text((x, y), character, font=font, fill=fill)
-        x += draw.textlength(character, font=font) + spacing
+    for char in text:
+        draw.text((x, y), char, font=font, fill=color)
+        x += draw.textlength(char, font=font) + letter_spacing
 
 
-def wrap_line(
-    draw,
-    text,
-    font,
-    max_width,
-    letter_spacing=0,
-    extra_word_space=0,
-):
-    """Wrap a paragraph to fit within the page's printable width."""
-    words = text.split()
+def wrap_paragraph(draw, paragraph, font, max_width,
+                   letter_spacing=0, extra_word_spacing=0):
+    words = paragraph.split()
 
     if not words:
         return [""]
@@ -128,37 +127,37 @@ def wrap_line(
 
     for word in words:
         candidate = (
-            word
-            if not current
-            else current + (" " * (1 + extra_word_space)) + word
+            word if not current
+            else current + (" " * (1 + extra_word_spacing)) + word
         )
 
-        if text_width(draw, candidate, font, letter_spacing) <= max_width:
+        if measure_text(draw, candidate, font, letter_spacing) <= max_width:
             current = candidate
+            continue
+
+        if current:
+            lines.append(current)
+
+        # Split a single long word if it exceeds the printable width.
+        if measure_text(draw, word, font, letter_spacing) > max_width:
+            part = ""
+
+            for char in word:
+                test = part + char
+
+                if (
+                    part
+                    and measure_text(draw, test, font, letter_spacing)
+                    > max_width
+                ):
+                    lines.append(part)
+                    part = char
+                else:
+                    part = test
+
+            current = part
         else:
-            if current:
-                lines.append(current)
-
-            # Handle unusually long words without overflowing the page.
-            if text_width(draw, word, font, letter_spacing) > max_width:
-                part = ""
-
-                for character in word:
-                    test = part + character
-
-                    if (
-                        part
-                        and text_width(draw, test, font, letter_spacing)
-                        > max_width
-                    ):
-                        lines.append(part)
-                        part = character
-                    else:
-                        part = test
-
-                current = part
-            else:
-                current = word
+            current = word
 
     if current:
         lines.append(current)
@@ -181,38 +180,35 @@ def render_pages(
     variation,
     margin_pct,
 ):
-    """Render text into customizable handwriting-style notebook pages."""
     width, height = PAGE_SIZES[page_name]
 
     if orientation == "Landscape":
         width, height = height, width
 
-    margin_left = int(width * margin_pct / 100)
-    margin_right = int(width * margin_pct / 100)
-    margin_top = int(height * margin_pct / 100) + 24
-    margin_bottom = int(height * margin_pct / 100)
+    left = int(width * margin_pct / 100)
+    right = int(width * margin_pct / 100)
+    top = int(height * margin_pct / 100) + 24
+    bottom = int(height * margin_pct / 100)
 
     if paper_style in ("Ruled notebook", "Grid", "Margin line"):
-        margin_left += 32
+        left += 32
 
-    content_width = max(100, width - margin_left - margin_right)
-    content_bottom = height - margin_bottom
+    content_width = max(100, width - left - right)
+    content_bottom = height - bottom
 
-    font = font_for(font_size, font_name)
+    font = get_font(font_size, font_name)
     probe = ImageDraw.Draw(Image.new("RGB", (10, 10), "white"))
 
     lines = []
 
-    for paragraph in (
-        text.replace("\r\n", "\n")
-        .replace("\r", "\n")
-        .split("\n")
-    ):
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    for paragraph in normalized.split("\n"):
         if not paragraph.strip():
             lines.append("")
         else:
             lines.extend(
-                wrap_line(
+                wrap_paragraph(
                     probe,
                     paragraph.rstrip(),
                     font,
@@ -222,9 +218,11 @@ def render_pages(
                 )
             )
 
-    line_height = max(1, int(line_gap))
-    usable_height = height - margin_top - margin_bottom - 60
-    capacity = max(1, usable_height // line_height)
+    line_height = max(font_size + 4, int(line_gap))
+    capacity = max(
+        1,
+        (height - top - bottom - 60) // line_height,
+    )
 
     chunks = [
         lines[index:index + capacity]
@@ -239,7 +237,7 @@ def render_pages(
         draw = ImageDraw.Draw(image)
 
         if paper_style == "Ruled notebook":
-            for y in range(margin_top - 8, height - margin_bottom, line_height):
+            for y in range(top - 8, height - bottom, line_height):
                 draw.line(
                     (30, y, width - 30, y),
                     fill="#D8E6F3",
@@ -247,28 +245,20 @@ def render_pages(
                 )
 
             draw.line(
-                (margin_left - 32, 0, margin_left - 32, height),
+                (left - 32, 0, left - 32, height),
                 fill="#E7A3A3",
                 width=2,
             )
 
         elif paper_style == "Grid":
             for x in range(30, width, 32):
-                draw.line(
-                    (x, 0, x, height),
-                    fill="#E7EDF2",
-                    width=1,
-                )
+                draw.line((x, 0, x, height), fill="#E7EDF2", width=1)
 
             for y in range(30, height, 32):
-                draw.line(
-                    (0, y, width, y),
-                    fill="#E7EDF2",
-                    width=1,
-                )
+                draw.line((0, y, width, y), fill="#E7EDF2", width=1)
 
             draw.line(
-                (margin_left - 32, 0, margin_left - 32, height),
+                (left - 32, 0, left - 32, height),
                 fill="#E7A3A3",
                 width=2,
             )
@@ -283,12 +273,12 @@ def render_pages(
 
         elif paper_style == "Margin line":
             draw.line(
-                (margin_left - 32, 55, margin_left - 32, height - 55),
+                (left - 32, 55, left - 32, height - 55),
                 fill="#E7A3A3",
                 width=2,
             )
 
-        y = margin_top
+        y = top
 
         for line in page_lines:
             if not line:
@@ -301,14 +291,10 @@ def render_pages(
             if y + actual_height > content_bottom - 35:
                 break
 
-            x = margin_left + (
-                rng.randint(-3, 4) if variation else 0
-            )
-            adjusted_y = y + (
-                rng.randint(-2, 2) if variation else 0
-            )
+            x = left + (rng.randint(-3, 4) if variation else 0)
+            adjusted_y = y + (rng.randint(-2, 2) if variation else 0)
 
-            draw_spaced(
+            draw_text(
                 draw,
                 (x, adjusted_y),
                 line,
@@ -319,15 +305,12 @@ def render_pages(
 
             y += line_height
 
-        footer_font = font_for(14, "Patrick Hand")
-        footer_label = f"Textify AI • Page {page_number}"
+        footer_font = get_font(14, "Patrick Hand")
+        footer = f"Textify AI | Page {page_number}"
 
         draw.text(
-            (
-                width - margin_right - 220,
-                height - max(28, margin_bottom // 2),
-            ),
-            footer_label,
+            (max(10, width - right - 220), height - max(28, bottom // 2)),
+            footer,
             font=footer_font,
             fill="#7B8490",
         )
@@ -337,10 +320,9 @@ def render_pages(
     return pages
 
 
-def to_pdf(pages):
-    """Convert rendered pages into a multi-page PDF."""
+def create_pdf(pages):
     if not pages:
-        raise ValueError("No pages to export.")
+        raise ValueError("Generate your pages before exporting.")
 
     output = io.BytesIO()
     rgb_pages = [page.convert("RGB") for page in pages]
@@ -357,99 +339,297 @@ def to_pdf(pages):
     return output.getvalue()
 
 
-# ---------------------------- Page configuration ----------------------------
+# ------------------------------ Streamlit setup ------------------------------
 
 st.set_page_config(
     page_title="Textify AI",
     page_icon="✍️",
     layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown(
     """
 <style>
-.stApp {background:#F4F7FB;color:#172033}
-.block-container {max-width:1250px;padding-top:1.5rem;padding-bottom:3rem}
-.hero {padding:1.5rem 1.7rem;border:1px solid #DCE5F0;border-radius:20px;
-background:linear-gradient(135deg,#fff,#EEF4FF);margin-bottom:1.2rem}
-.hero h1 {margin:0;color:#172033;font-size:2.35rem;letter-spacing:-.03em}
-.hero p {margin:.45rem 0 0;color:#52627A;font-size:1rem}
-.stApp label,.stApp [data-testid="stWidgetLabel"] p {
-    color:#172033!important;font-weight:600!important;font-size:.94rem!important
+:root {
+    color-scheme: light;
 }
+
+.stApp {
+    background: #F5F7FB;
+    color: #172033;
+}
+
+.block-container {
+    width: 100%;
+    max-width: 1240px;
+    padding: 1.5rem 1.6rem 3rem;
+}
+
+header[data-testid="stHeader"] {
+    background: rgba(245,247,251,.94);
+}
+
+.hero {
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #DCE5F1;
+    border-radius: 22px;
+    background: linear-gradient(120deg,#FFFFFF,#EDF3FF);
+    box-shadow: 0 8px 28px rgba(32,55,92,.05);
+}
+
+.hero-kicker {
+    display: inline-block;
+    padding: .35rem .7rem;
+    border-radius: 999px;
+    background: #E7EEFF;
+    color: #3157A4;
+    font-size: .75rem;
+    font-weight: 750;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    margin-bottom: .8rem;
+}
+
+.hero h1 {
+    margin: 0;
+    color: #15223A;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.12;
+    letter-spacing: -.045em;
+}
+
+.hero p {
+    max-width: 680px;
+    margin: .75rem 0 0;
+    color: #5A6880;
+    font-size: 1rem;
+    line-height: 1.65;
+}
+
+.section-heading {
+    color: #1A2942;
+    font-size: 1.15rem;
+    font-weight: 760;
+    letter-spacing: -.02em;
+    margin-bottom: .25rem;
+}
+
+.section-subtitle {
+    color: #64748B;
+    font-size: .9rem;
+    line-height: 1.5;
+    margin-bottom: .85rem;
+}
+
+.stApp label,
+.stApp [data-testid="stWidgetLabel"] p {
+    color: #27364D !important;
+    font-weight: 650 !important;
+    font-size: .9rem !important;
+}
+
 .stApp [data-testid="stCaptionContainer"] {
-    color:#52627A!important;font-size:.87rem!important
+    color: #64748B !important;
+    font-size: .84rem !important;
+    line-height: 1.5 !important;
 }
+
 .stTextArea textarea {
-    background:#fff!important;color:#172033!important;
-    border:1px solid #C9D5E4!important;border-radius:12px!important
+    width: 100% !important;
+    background: #FFFFFF !important;
+    color: #172033 !important;
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 13px !important;
+    line-height: 1.65 !important;
+    padding: .9rem !important;
+    font-size: 1rem !important;
 }
+
+.stTextArea textarea:focus {
+    border-color: #6488D8 !important;
+    box-shadow: 0 0 0 3px rgba(100,136,216,.15) !important;
+}
+
+.stSelectbox [data-baseweb="select"] > div {
+    border-radius: 10px;
+    min-height: 42px;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    background: rgba(255,255,255,.9);
+    border: 1px solid #E0E7F0 !important;
+    border-radius: 16px !important;
+    padding: 1rem 1.05rem;
+    box-shadow: 0 4px 18px rgba(27,48,80,.035);
+}
+
 .stButton > button,
 .stDownloadButton > button {
-    border-radius:10px!important;
-    min-height:2.75rem!important;
-    font-weight:650!important;
-    background:#FFFFFF!important;
-    color:#24324A!important;
-    border:1px solid #C8D4E4!important;
-    opacity:1!important;
-    box-shadow:0 1px 2px rgba(15,23,42,.06)!important
+    width: 100%;
+    min-height: 44px !important;
+    border-radius: 11px !important;
+    font-weight: 700 !important;
+    white-space: normal !important;
+    transition: background .15s ease, border-color .15s ease !important;
 }
-.stButton > button p,
-.stDownloadButton > button p,
-.stButton > button span,
-.stDownloadButton > button span {
-    color:#24324A!important;opacity:1!important
+
+.stButton > button[kind="primary"],
+.stDownloadButton > button[kind="primary"] {
+    background: #315CCB !important;
+    color: white !important;
+    border: 1px solid #315CCB !important;
 }
-.stButton > button:hover,
-.stDownloadButton > button:hover {
-    background:#EAF1FB!important;color:#15243B!important;
-    border-color:#8CA7CB!important
+
+.stButton > button[kind="primary"] p,
+.stDownloadButton > button[kind="primary"] p,
+.stButton > button[kind="primary"] span,
+.stDownloadButton > button[kind="primary"] span {
+    color: white !important;
 }
+
+.stButton > button[kind="primary"]:hover,
+.stDownloadButton > button[kind="primary"]:hover {
+    background: #244BAF !important;
+    border-color: #244BAF !important;
+}
+
+.stButton > button:not([kind="primary"]),
+.stDownloadButton > button:not([kind="primary"]) {
+    background: white !important;
+    color: #263750 !important;
+    border: 1px solid #CBD5E1 !important;
+}
+
+.stButton > button:not([kind="primary"]):hover,
+.stDownloadButton > button:not([kind="primary"]):hover {
+    background: #F0F5FF !important;
+    border-color: #91A9D7 !important;
+}
+
 .stButton > button:focus,
 .stDownloadButton > button:focus {
-    outline:2px solid #6C91C5!important;outline-offset:2px!important
+    outline: 2px solid #7395E1 !important;
+    outline-offset: 2px !important;
 }
-.stButton > button:disabled,
-.stDownloadButton > button:disabled {
-    background:#E9EEF5!important;color:#64748B!important;
-    border-color:#D5DEEA!important;opacity:1!important
-}
+
 div[data-testid="stMetric"] {
-    background:#fff;border:1px solid #DFE7F1;
-    padding:.8rem;border-radius:12px
+    background: white;
+    border: 1px solid #E0E7F0;
+    padding: .8rem;
+    border-radius: 12px;
+    overflow-wrap: anywhere;
+}
+
+div[data-testid="stMetricLabel"] {
+    color: #64748B !important;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #1E3152 !important;
+}
+
+div[data-testid="stImage"] img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #E1E7EF;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(27,48,80,.07);
+}
+
+hr {
+    border-color: #E1E7F0 !important;
+}
+
+/* Tablet and phone layouts */
+@media (max-width: 768px) {
+    .block-container {
+        padding: 1rem .85rem 2rem;
+    }
+
+    .hero {
+        padding: 1.3rem 1.15rem;
+        border-radius: 17px;
+        margin-bottom: 1.1rem;
+    }
+
+    .hero h1 {
+        font-size: clamp(1.9rem, 8vw, 2.5rem);
+    }
+
+    .hero p {
+        font-size: .94rem;
+        line-height: 1.55;
+    }
+
+    .section-heading {
+        font-size: 1.05rem;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding: .85rem;
+        border-radius: 13px !important;
+    }
+
+    .stTextArea textarea {
+        font-size: 16px !important;
+    }
+
+    .stButton > button,
+    .stDownloadButton > button {
+        min-height: 46px !important;
+        font-size: .95rem !important;
+    }
+
+    div[data-testid="stMetric"] {
+        padding: .55rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .block-container {
+        padding-left: .65rem;
+        padding-right: .65rem;
+    }
+
+    .hero {
+        padding: 1.1rem .9rem;
+    }
+
+    .hero-kicker {
+        font-size: .68rem;
+    }
+
+    .section-subtitle {
+        font-size: .85rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+        animation: none !important;
+        scroll-behavior: auto !important;
+    }
 }
 </style>
 
 <div class="hero">
+    <div class="hero-kicker">Your text, your style</div>
     <h1>✍️ Textify AI</h1>
-    <p>Turn plain text into customizable handwritten-style pages.</p>
+    <p>Turn plain text into beautiful handwritten-style pages. Customize
+    your paper, ink, and typography, preview your notes, and export a PDF.</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
 
-# -------------------------------- Sidebar ------------------------------------
-
-with st.sidebar:
-    st.header("Textify AI")
-    st.caption("Turn text into handwritten-style pages and export them.")
-
-    st.markdown(
-        "**How it works**\n"
-        "1. Paste or type your text.\n"
-        "2. Customize your pages.\n"
-        "3. Generate and download your pages."
-    )
-
-    st.info(
-        "Handwriting fonts change the appearance of text; "
-        "they do not reproduce real pen strokes."
-    )
-
-
-# ------------------------------ Session state --------------------------------
+# ------------------------------ Input and settings ---------------------------
 
 if "source_text" not in st.session_state:
     st.session_state.source_text = (
@@ -461,86 +641,65 @@ if "source_text" not in st.session_state:
         "• Machine Learning: systems learn patterns from data.\n"
         "• Computer Vision: systems interpret images and video.\n"
         "• Natural Language Processing: systems work with human language."
-        "\n\nReplace this sample with your own study material."
     )
-
-
-# ------------------------------- Main layout ---------------------------------
 
 left, right = st.columns([1.08, 0.92], gap="large")
 
 with left:
-    st.subheader("01 · Your content")
-
-    source_text = st.text_area(
-        "Study material",
-        key="source_text",
-        height=330,
-        max_chars=100000,
-        placeholder="Paste your study material here...",
+    st.markdown(
+        '<div class="section-heading">01 · Your content</div>'
+        '<div class="section-subtitle">Paste or type the text you want '
+        'to turn into handwriting.</div>',
+        unsafe_allow_html=True,
     )
 
-    st.caption(f"{len(source_text):,} characters")
+    source_text = st.text_area(
+        "Your text",
+        key="source_text",
+        height=300,
+        max_chars=MAX_CHARS,
+        placeholder="Start typing or paste your text here...",
+        label_visibility="visible",
+    )
 
+    st.caption(
+        f"{len(source_text):,} characters · "
+        f"{MAX_CHARS:,} character limit"
+    )
 
 with right:
-    st.subheader("02 · Customize your pages")
-    st.caption("Each setting changes the generated output.")
+    st.markdown(
+        '<div class="section-heading">02 · Customize your pages</div>'
+        '<div class="section-subtitle">Choose how your handwritten pages '
+        'should look.</div>',
+        unsafe_allow_html=True,
+    )
 
     with st.container(border=True):
         paper_style = st.selectbox(
             "Paper style",
-            [
-                "Ruled notebook",
-                "Plain paper",
-                "Grid",
-                "Dotted",
-                "Margin line",
-            ],
+            ["Ruled notebook", "Plain paper", "Grid", "Dotted", "Margin line"],
         )
 
-        paper_color = st.selectbox(
-            "Paper color",
-            list(PAPERS.keys()),
-        )
+        paper_color = st.selectbox("Paper color", list(PAPERS.keys()))
 
         font_name = st.selectbox(
             "Handwriting font",
             list(FONT_URLS.keys()),
-            help=(
-                "Fonts download on first use when internet access "
-                "is available."
-            ),
+            help="If a font cannot download, a fallback font is used.",
         )
 
-        page_name = st.selectbox(
-            "Page size",
-            list(PAGE_SIZES.keys()),
-        )
+        page_name = st.selectbox("Page size", list(PAGE_SIZES.keys()))
 
         orientation = st.selectbox(
             "Page orientation",
             ["Portrait", "Landscape"],
-            index=0,
-            help=(
-                "Choose Portrait for a vertical page or Landscape "
-                "for a horizontal page."
-            ),
         )
 
-        st.markdown("**Writing size**")
-
-        font_size = st.slider(
-            "Text size (pixels)",
-            20,
-            54,
-            34,
-        )
-
-        st.markdown("**Line spacing**")
+        font_size = st.slider("Text size", 20, 54, 34)
 
         line_gap = st.slider(
-            "Distance between lines",
+            "Line spacing",
             32,
             78,
             56,
@@ -548,34 +707,14 @@ with right:
         )
 
         with st.expander("Advanced typography and layout"):
-            letter_spacing = st.slider(
-                "Letter spacing",
-                -1,
-                4,
-                0,
-            )
-
-            word_spacing = st.slider(
-                "Extra word spacing",
-                0,
-                3,
-                0,
-            )
-
-            margin_pct = st.slider(
-                "Page margins",
-                5,
-                12,
-                8,
-            )
+            letter_spacing = st.slider("Letter spacing", -1, 4, 0)
+            word_spacing = st.slider("Extra word spacing", 0, 3, 0)
+            margin_pct = st.slider("Page margins", 5, 12, 8)
 
             variation = st.checkbox(
                 "Add natural layout variation",
                 value=True,
-                help=(
-                    "Slightly varies line placement. Turn off "
-                    "for consistent alignment."
-                ),
+                help="Slightly varies line placement for a more natural look.",
             )
 
         ink_label = st.radio(
@@ -583,63 +722,54 @@ with right:
             list(INKS.keys()),
             horizontal=True,
         )
-
         ink = INKS[ink_label]
 
         st.markdown(
             f"""
-<div style="display:flex;align-items:center;gap:10px;
-padding:10px 12px;border:1px solid #DCE5F0;border-radius:10px;
-background:#F8FAFD;margin-top:4px;">
-<span style="width:18px;height:18px;border-radius:50%;
-background:{ink};border:2px solid white;
-box-shadow:0 0 0 1px #AAB6C8;display:inline-block"></span>
-<span style="color:#26344B">Selected ink: <b>{ink_label}</b></span>
-</div>
-""",
+            <div style="display:flex;align-items:center;gap:10px;
+            padding:10px 12px;border:1px solid #DCE5F0;
+            border-radius:10px;background:#F8FAFD;margin-top:5px;">
+            <span style="width:18px;height:18px;border-radius:50%;
+            background:{ink};border:2px solid white;
+            box-shadow:0 0 0 1px #AAB6C8;flex-shrink:0"></span>
+            <span style="color:#26344B">Selected ink:
+            <b>{ink_label}</b></span></div>
+            """,
             unsafe_allow_html=True,
         )
 
-        st.caption(
-            "A handwriting font changes text appearance; "
-            "it does not simulate real pen strokes."
-        )
 
-
-# --------------------------- Generate notebook pages -------------------------
+# ------------------------------ Generate pages ------------------------------
 
 st.divider()
 
-go, hint = st.columns([1, 1.05], vertical_alignment="center")
+st.markdown(
+    '<div class="section-heading">03 · Create your pages</div>'
+    '<div class="section-subtitle">Generate a preview, then download '
+    'all pages as a PDF.</div>',
+    unsafe_allow_html=True,
+)
 
-with go:
-    generate = st.button(
-        "✨ Generate notebook pages",
-        type="primary",
-        use_container_width=True,
-    )
-
-with hint:
-    st.caption(
-        "Your text is rendered into handwritten-style pages."
-    )
-
+generate = st.button(
+    "✨ Generate handwritten pages",
+    type="primary",
+    use_container_width=True,
+)
 
 if generate:
     if not source_text.strip():
-        st.error("Add some text before generating.")
-
+        st.warning("Please type or paste some text first.")
     else:
-        with st.spinner("Preparing font and rendering pages..."):
-            ready = ensure_font(font_name)
+        try:
+            with st.spinner("Preparing your handwritten pages..."):
+                font_ready = ensure_font(font_name)
 
-            if not ready:
-                st.warning(
-                    f"Could not download {font_name}; "
-                    "a fallback font will be used."
-                )
+                if not font_ready:
+                    st.warning(
+                        f"{font_name} could not be downloaded. "
+                        "A fallback font will be used."
+                    )
 
-            try:
                 pages = render_pages(
                     source_text,
                     page_name,
@@ -656,62 +786,59 @@ if generate:
                     margin_pct,
                 )
 
-                st.session_state.pages = pages
-                st.session_state.pdf = to_pdf(pages)
+                pdf_bytes = create_pdf(pages)
 
-                st.session_state.render_meta = {
-                    "paper": paper_style,
+                st.session_state["generated_pages"] = pages
+                st.session_state["generated_pdf"] = pdf_bytes
+                st.session_state["generated_meta"] = {
                     "characters": len(source_text),
+                    "paper": paper_style,
+                    "source": source_text,
                 }
 
-                st.success(
-                    f"Generated {len(pages)} page(s). "
-                    "Review before exporting."
-                )
+            st.success(f"Your {len(pages)} page(s) are ready.")
 
-            except Exception as error:
-                st.error(f"Could not generate pages: {error}")
+        except Exception as error:
+            st.error(f"Could not generate pages: {error}")
 
 
-# ------------------------------ Preview & export -----------------------------
+# ------------------------------ Preview and export ---------------------------
 
-if "pages" in st.session_state:
-    pages = st.session_state.pages
-    meta = st.session_state.get("render_meta", {})
+if "generated_pages" in st.session_state:
+    pages = st.session_state["generated_pages"]
+    pdf_bytes = st.session_state["generated_pdf"]
+    meta = st.session_state["generated_meta"]
 
     st.divider()
-    st.subheader("03 · Preview and export")
+
+    st.markdown(
+        '<div class="section-heading">04 · Preview and export</div>'
+        '<div class="section-subtitle">Check the preview before downloading '
+        'your complete document.</div>',
+        unsafe_allow_html=True,
+    )
 
     metric_a, metric_b, metric_c = st.columns(3)
 
-    metric_a.metric("Pages generated", len(pages))
-
-    metric_b.metric(
-        "Characters rendered",
-        f"{meta.get('characters', 0):,}",
-    )
-
-    metric_c.metric(
-        "Paper style",
-        meta.get("paper", "—"),
-    )
+    metric_a.metric("Pages", len(pages))
+    metric_b.metric("Characters", f"{meta['characters']:,}")
+    metric_c.metric("Paper", meta["paper"])
 
     st.caption(
-        "Previewing up to the first three pages. "
-        "The PDF includes every generated page."
+        "Showing up to three preview pages. "
+        "Your PDF includes all generated pages."
     )
 
     preview_count = min(len(pages), 3)
 
+    # Two columns on larger screens; Streamlit stacks columns on narrow screens.
     for start in range(0, preview_count, 2):
-        columns = st.columns(
-            min(2, preview_count - start)
-        )
+        preview_columns = st.columns(min(2, preview_count - start))
 
-        for offset, column in enumerate(columns):
+        for offset, column in enumerate(preview_columns):
+            page_index = start + offset
+
             with column:
-                page_index = start + offset
-
                 st.image(
                     pages[page_index],
                     caption=f"Page {page_index + 1}",
@@ -720,25 +847,24 @@ if "pages" in st.session_state:
 
     if len(pages) > 3:
         st.info(
-            f"{len(pages) - 3} additional page(s) "
-            "are included in the PDF."
+            f"{len(pages) - 3} more page(s) are included in the PDF."
         )
 
     st.download_button(
         "⬇️ Download complete PDF",
-        st.session_state.pdf,
-        file_name="textify_ai_notes.pdf",
+        data=pdf_bytes,
+        file_name="textify_ai_handwritten_notes.pdf",
         mime="application/pdf",
         type="primary",
         use_container_width=True,
     )
 
 
-# ---------------------------------- Footer -----------------------------------
+# -------------------------------- Footer -------------------------------------
 
 st.divider()
 
 st.caption(
-    "Handwriting-style pages are rendered images, so PDF text may not "
-    "be selectable or searchable."
+    "Textify AI converts text into handwriting-style page images. "
+    "PDF text may not be selectable or searchable."
 )
