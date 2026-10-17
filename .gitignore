@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Secrets: never commit API keys
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# Local generated files
+*.pdf
+.DS_Store
+Thumbs.db
