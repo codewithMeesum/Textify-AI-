@@ -1,106 +1,3 @@
-
-Loading older messages…
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import io
 import random
 from pathlib import Path
@@ -342,13 +239,10 @@ def render_pages(
         margin_left += 32
 
     content_width = max(100, width - margin_left - margin_right)
-    content_right = width - margin_right
     content_bottom = height - margin_bottom - 35
 
     font = font_for(font_size, font_name)
 
-    # Use Pillow's font metrics rather than estimating glyph height
-    # from the requested font size.
     try:
         ascent, descent = font.getmetrics()
     except AttributeError:
@@ -358,20 +252,16 @@ def render_pages(
 
     font_height = ascent + descent
 
-    # Keep enough room for ascenders, descenders, and a small gap.
-    # The selected line spacing is a minimum, not an unsafe guarantee.
     safe_line_height = max(
         int(line_gap),
         font_height + max(4, int(font_size * 0.12)),
     )
 
-    # Draw a baseline grid at the same spacing as consecutive text lines.
     rule_spacing = safe_line_height
 
     probe_image = Image.new("RGB", (10, 10), "white")
     probe = ImageDraw.Draw(probe_image)
 
-    # Prepare paragraphs, preserving blank lines.
     normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = []
 
@@ -391,10 +281,7 @@ def render_pages(
             )
         )
 
-    # First baseline: leave enough room above for the font's ascenders.
     first_baseline = margin_top + ascent
-
-    # Count how many baseline slots fit on a page.
     available_height = content_bottom - first_baseline
 
     capacity = max(
@@ -414,7 +301,6 @@ def render_pages(
         image = Image.new("RGB", (width, height), paper_color)
         draw = ImageDraw.Draw(image)
 
-        # Draw the paper first, using the same baseline grid as the text.
         if paper_style == "Ruled notebook":
             rule_y = first_baseline
 
@@ -468,7 +354,6 @@ def render_pages(
                 width=2,
             )
 
-        # Draw every line on the shared baseline grid.
         baseline = first_baseline
 
         for line in page_lines:
@@ -481,7 +366,6 @@ def render_pages(
 
             line_width = text_width(draw, line, font, letter_spacing)
 
-            # A final safety check against horizontal overflow.
             if line_width > content_width:
                 wrapped = wrap_line(
                     draw,
@@ -491,49 +375,33 @@ def render_pages(
                     letter_spacing,
                     word_spacing,
                 )
-
-                # This is only a defensive fallback. Normal wrapping
-                # already occurs before page generation.
-                for extra_line in wrapped:
+                for wrapped_line in wrapped:
                     if baseline > content_bottom:
                         break
 
-                    if not extra_line:
-                        baseline += safe_line_height
-                        continue
-
-                    x = margin_left
-
-                    if variation:
-                        x += rng.randint(-2, 2)
+                    x_offset = (
+                        rng.randint(-2, 2)
+                        if variation
+                        else 0
+                    )
 
                     draw_spaced(
                         draw,
-                        (x, baseline),
-                        extra_line,
+                        (margin_left + x_offset, baseline),
+                        wrapped_line,
                         font,
                         ink,
                         letter_spacing,
                     )
-
                     baseline += safe_line_height
 
                 continue
 
-            x = margin_left
-
-            if variation:
-                x += rng.randint(-2, 2)
-
-            # Prevent any variation from moving text outside the page.
-            x = max(
-                margin_left,
-                min(x, content_right - int(line_width)),
-            )
+            x_offset = rng.randint(-2, 2) if variation else 0
 
             draw_spaced(
                 draw,
-                (x, baseline),
+                (margin_left + x_offset, baseline),
                 line,
                 font,
                 ink,
@@ -542,55 +410,29 @@ def render_pages(
 
             baseline += safe_line_height
 
-        # Page number footer.
-        footer_font = font_for(14, "Patrick Hand")
-        footer_label = f"Textify AI • Page {page_number}"
-
-        footer_bbox = draw.textbbox(
-            (0, 0),
-            footer_label,
-            font=footer_font,
-        )
-        footer_width = footer_bbox[2] - footer_bbox[0]
-
-        draw.text(
-            (
-                max(10, width - margin_right - footer_width),
-                height - max(28, margin_bottom // 2),
-            ),
-            footer_label,
-            font=footer_font,
-            fill="#7B8490",
-        )
-
         pages.append(image)
 
     return pages
 
 
-# ------------------------------ PDF export -----------------------------------
-
 def to_pdf(pages):
-    """Export the exact rendered preview pages to a multi-page PDF."""
+    """Convert rendered page images into a multi-page PDF."""
     if not pages:
-        raise ValueError("No pages to export.")
+        raise ValueError("There are no pages to export.")
 
-    output = io.BytesIO()
+    pdf_buffer = io.BytesIO()
     rgb_pages = [page.convert("RGB") for page in pages]
 
     rgb_pages[0].save(
-        output,
+        pdf_buffer,
         format="PDF",
         save_all=True,
         append_images=rgb_pages[1:],
-        resolution=150,
+        resolution=150.0,
     )
 
-    output.seek(0)
-    return output.getvalue()
-
-
-# ------------------------------ Streamlit UI --------------------------------
+    return pdf_buffer.getvalue()
+    # ------------------------------ Streamlit UI --------------------------------
 
 st.set_page_config(
     page_title="Textify AI",
@@ -915,7 +757,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Small, isolated styling for the chat panel only.
 st.markdown(
     """
     <style>
@@ -948,12 +789,10 @@ with clear_col:
         st.session_state.ai_messages = []
         st.rerun()
 
-# Render conversation history.
 for message in st.session_state.ai_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Prompt suggestions are shortcuts; users can still type any prompt below.
 st.caption("QUICK PROMPTS")
 prompt_cols = st.columns(4)
 quick_prompts = [
@@ -980,7 +819,6 @@ if chat_question:
         if not api_key:
             st.error("Gemini API key is missing. Add GEMINI_API_KEY in your Streamlit app's Secrets settings.")
         else:
-            # Save the user turn only after basic input/key validation.
             previous_history = st.session_state.ai_messages[-10:]
             st.session_state.ai_messages.append({"role": "user", "content": chat_question})
 
@@ -1029,7 +867,6 @@ LATEST USER MESSAGE:
 
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking…"):
-                        # Use Google's current Interactions API and an available model.
                         response = client.interactions.create(
                             model="gemini-3.8-flash",
                             input=prompt,
@@ -1042,16 +879,13 @@ LATEST USER MESSAGE:
                 st.session_state.ai_messages.append({"role": "assistant", "content": answer})
 
             except Exception as error:
-                # Keep the user message so they can see what they tried; the
-                # visible diagnostic helps identify key/model/quota issues.
                 st.error(f"Gemini request failed: {error}")
                 st.caption(
                     "Check that GEMINI_API_KEY is valid, the Gemini API is enabled "
                     "for its project, and your account has model access and quota. "
                     "Do not share your API key."
                 )
-
-st.divider()
+                st.divider()
 
 st.markdown(
     '<div class="section-heading">02 · Customize your pages</div>'
@@ -1262,5 +1096,3 @@ st.caption(
     "Textify AI converts text into handwriting-style page images. "
     "PDF text may not be selectable or searchable."
 )
-
-
