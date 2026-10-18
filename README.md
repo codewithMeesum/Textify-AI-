@@ -1,3 +1,5 @@
+<div align="center">
+
 # ✍️ Textify AI
 
 <div align="center">
