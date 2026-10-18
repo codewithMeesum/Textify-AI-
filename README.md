@@ -15,7 +15,7 @@ Transform typed text into handwriting-style pages with customizable fonts, paper
 
 <br>
 
-### [🚀 TRY TEXTIFY AI LIVE](https://textifyai.streamlit.app/)
+### [ TRY TEXTIFY AI LIVE](https://textifyai.streamlit.app/)
 
 **Paste your text. Customize your handwriting. Learn with AI. Download your PDF.**
 
