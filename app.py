@@ -1,3 +1,106 @@
+
+Loading older messages…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import io
 import random
 from pathlib import Path
@@ -926,11 +1029,12 @@ LATEST USER MESSAGE:
 
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking…"):
-                        response = client.models.generate_content(
-                            model="gemini-2.5-flash",
-                            contents=prompt,
+                        # Use Google's current Interactions API and an available model.
+                        response = client.interactions.create(
+                            model="gemini-3.8-flash",
+                            input=prompt,
                         )
-                        answer = (response.text or "").strip()
+                        answer = (response.output_text or "").strip()
                         if not answer:
                             answer = "Gemini returned an empty response. Please try rephrasing your prompt."
                     st.markdown(answer)
@@ -941,7 +1045,11 @@ LATEST USER MESSAGE:
                 # Keep the user message so they can see what they tried; the
                 # visible diagnostic helps identify key/model/quota issues.
                 st.error(f"Gemini request failed: {error}")
-                st.caption("Check the API key, model availability, billing/quota, and the Streamlit app logs. Do not share your API key.")
+                st.caption(
+                    "Check that GEMINI_API_KEY is valid, the Gemini API is enabled "
+                    "for its project, and your account has model access and quota. "
+                    "Do not share your API key."
+                )
 
 st.divider()
 
@@ -1154,3 +1262,5 @@ st.caption(
     "Textify AI converts text into handwriting-style page images. "
     "PDF text may not be selectable or searchable."
 )
+
+
