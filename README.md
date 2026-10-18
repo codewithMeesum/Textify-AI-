@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://textifyai.streamlit.app/"><strong>🚀 Try the Live Demo</strong></a>
+  <a href="https://textifyai.streamlit.app/"><strong> Try the Live Demo</strong></a>
   &nbsp; | &nbsp;
   <a href="https://github.com/codewithMeesum/Textify-AI-"><strong>💻 View Source Code</strong></a>
 </p>
