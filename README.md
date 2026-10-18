@@ -263,7 +263,7 @@ By bringing customizable handwriting generation and conversational study assista
 
 ## 👨‍💻 Developer
 
-**Mesumm Mukhtar**
+**Mesum Mukhtar**
 
 Computer Science Student | University of Baltistan, Skardu
 
