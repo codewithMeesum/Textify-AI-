@@ -1262,5 +1262,3 @@ st.caption(
     "Textify AI converts text into handwriting-style page images. "
     "PDF text may not be selectable or searchable."
 )
-
-
