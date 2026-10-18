@@ -1,218 +1,178 @@
- <div align="center">
+# Textify AI
 
-# ✍️ Textify AI
+<p align="center">
+  <strong>Turn Digital Text into Beautiful Handwriting — Study Smarter with AI</strong>
+</p>
 
-### Turn Your Digital Text Into Beautiful Handwriting — Study Smarter With AI
+<p align="center">
+  Textify AI combines AI-powered study assistance with customizable handwritten-style notes in one accessible web application.
+</p>
 
-Transform typed text into handwritten-style pages with customizable fonts, paper styles, ink colors, and downloadable PDFs. Use the built-in AI Study Assistant to understand concepts, summarize material, prepare revision notes, and generate practice questions.
+<p align="center">
+  <a href="https://textifyai.streamlit.app/"><strong>🚀 Try the Live Demo</strong></a>
+  &nbsp; | &nbsp;
+  <a href="https://github.com/codewithMeesum/Textify-AI-"><strong>💻 View Source Code</strong></a>
+</p>
 
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://streamlit.io/)
-[![Pillow](https://img.shields.io/badge/Pillow-Image%20Processing-6A5ACD?style=for-the-badge)](https://python-pillow.org/)
-[![Google Gemini](https://img.shields.io/badge/Google-Gemini%20AI-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev/)
-
-### [TRY TEXTIFY AI LIVE](https://textifyai.streamlit.app/)
-
-**Paste your text. Customize your handwriting. Learn with AI. Download your PDF.**
-
-[Problem & Solution](#-1-problem-statement) · [Features](#-3-features) · [AI Methodology](#-5-ai-methodology-and-implementation) · [Installation](#-7-setup-and-installation) · [Screenshots](#️-9-product-screenshots)
-
-</div>
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
+  <img src="https://img.shields.io/badge/Google%20Gemini-AI-blue?style=for-the-badge" alt="Google Gemini">
+  <img src="https://img.shields.io/badge/Pillow-Image%20Processing-green?style=for-the-badge" alt="Pillow">
+</p>
 
 ---
 
-## 📌 1. Problem Statement
+## 1. Problem Statement
 
-University and college students often work with lengthy digital study materials that can be difficult to understand, summarize, and organize for revision. Preparing useful study notes may require switching between separate tools for AI-assisted explanations, summaries, practice questions, and document formatting.
+University and college students often work with lengthy digital study materials that can be difficult to understand, summarize, and organize for revision. Preparing useful study notes may involve switching between separate tools for AI-assisted explanations, summaries, practice questions, and document formatting.
 
 There is an opportunity to simplify this workflow through an accessible platform that combines AI-powered study assistance with customizable handwritten-style note generation.
 
-## 💡 2. Solution Overview
+## 2. Proposed Solution
 
-**Textify AI** is a Python-powered web application that combines handwritten-style document generation with an AI-powered study assistant in one interactive platform.
+**Textify AI** is an AI-powered study and note-preparation web application designed for university and college students. It combines a Google Gemini-powered AI Study Assistant with a customizable handwriting generator in one platform.
 
-Students can paste study material and use the Google Gemini-powered assistant to ask questions, understand concepts through simple explanations, generate summaries, prepare revision notes, and create multiple-choice questions.
+Students can paste their study material and use the AI assistant to ask questions, understand concepts through simple explanations, generate summaries, prepare revision notes, and create multiple-choice questions. They can then use the handwriting generator to customize fonts, paper styles, ink colors, and page layouts, preview their pages, and download their documents as PDFs.
 
-They can also customize handwriting fonts, paper styles, ink colors, page sizes, orientation, margins, and spacing; preview generated pages; and download their documents as PDFs.
+By bringing AI-assisted study support and handwritten-style document creation together, Textify AI aims to make preparing and organizing study material more convenient through a single, accessible interface.
 
-By combining these capabilities in one interface, Textify AI aims to make preparing and organizing study material more convenient.
+## 3. Key Features
 
-🌐 **Live Application:** [https://textifyai.streamlit.app/](https://textifyai.streamlit.app/)
+| Feature | Description |
+|---|---|
+| **AI Study Assistant** | Ask questions about study material and receive contextual explanations. |
+| **Simple Explanations** | Request explanations of difficult concepts in beginner-friendly language. |
+| **Study Summaries** | Generate concise summaries of the supplied material. |
+| **Revision Notes** | Create structured revision notes and outlines. |
+| **MCQ Generation** | Generate multiple-choice practice questions from study content. |
+| **Handwriting Styles** | Choose from Caveat, Patrick Hand, and Kalam font styles. |
+| **Paper Customization** | Choose ruled, plain, grid, dotted, or margin-line paper. |
+| **Paper and Ink Colors** | Customize paper backgrounds and ink colors. |
+| **Page Layout** | Select A4, Letter, or A5 paper and portrait or landscape orientation. |
+| **Spacing Controls** | Adjust margins, line spacing, letter spacing, and word spacing. |
+| **Handwritten Variation** | Apply slight horizontal variation for a more natural-looking layout. |
+| **Multi-Page Preview** | Preview generated handwritten-style pages before exporting. |
+| **PDF Export** | Download generated notes as PDF documents. |
+| **Conversational Follow-Ups** | Continue asking questions using recent conversation context. |
+| **Browser-Based Access** | Use the application through a web browser without installing a desktop application. |
 
-💻 **Source Code:** [GitHub Repository](https://github.com/codewithMeesum/Textify-AI-)
+## 4. How Textify AI Works
 
----
-
-## ✨ 3. Features
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-### ✍️ Handwriting Generator
-
-- 📝 **Text-to-Handwriting:** Transform typed text into handwritten-style pages.
-- 🖋️ **Handwriting Fonts:** Choose from available handwriting-style fonts.
-- 📄 **Multiple Page Sizes:** Select A4, Letter, or A5.
-- 📐 **Page Customization:** Configure supported orientation and margins.
-- 📓 **Paper Styles:** Choose from available paper backgrounds and layouts.
-- 🎨 **Ink Colors:** Personalize writing with different ink colors.
-- 📏 **Spacing Controls:** Adjust line spacing.
-- 👀 **Page Preview:** Review generated pages before exporting.
-- 📥 **PDF Download:** Save the generated document as a PDF.
-
-</td>
-<td width="50%" valign="top">
-
-### 🤖 AI Study Assistant
-
-- 💬 **Content-Based Q&A:** Ask questions about supplied study material.
-- 🧠 **Simple Explanations:** Understand difficult concepts in easy language.
-- 📝 **Smart Summaries:** Condense lengthy content into concise summaries.
-- 📚 **Revision Notes:** Generate organized study notes and outlines.
-- ❓ **Practice MCQs:** Generate multiple-choice questions with answer keys.
-- 🔄 **Follow-Up Questions:** Continue the conversation to explore a topic.
-- 🎯 **Source-Aware Assistance:** Use pasted material as the main reference for study-related questions.
-
-</td>
-</tr>
-</table>
-
----
-
-## 🔄 4. How It Works
-
-Textify AI provides two complementary workflows: AI-assisted studying and handwritten-style document generation.
+The application combines two connected workflows: AI-assisted study support and handwritten-style document generation.
 
 ```mermaid
 flowchart TD
-    A["📝 Paste Study Material"] --> B["Choose a Workflow"]
+    A[Student Opens Textify AI] --> B[Pastes Study Material]
+    B --> C[Chooses a Workflow]
 
-    B --> C["✍️ Handwriting Generator"]
-    B --> D["🤖 AI Study Assistant"]
+    C --> D[AI Study Assistant]
+    D --> E[Google Gemini API]
+    E --> F[Explanations, Summaries, Notes and MCQs]
 
-    C --> E["🎨 Customize Font, Paper and Ink"]
-    E --> F["👀 Preview Pages"]
-    F --> G["📄 Download PDF"]
+    C --> G[Handwriting Generator]
+    G --> H[Choose Font, Paper, Colors and Layout]
+    H --> I[Generate Page Images]
+    I --> J[Preview Pages]
+    J --> K[Export PDF]
 
-    D --> H["Google Gemini API"]
-    H --> I["💡 Explanations and Summaries"]
-    H --> J["📚 Revision Notes and MCQs"]
-    H --> K["💬 Follow-Up Questions"]
-
-    classDef start fill:#e8f0fe,stroke:#4285f4,color:#174ea6
-    classDef writing fill:#e7f8ee,stroke:#16a34a,color:#166534
-    classDef ai fill:#f3e8ff,stroke:#9333ea,color:#581c87
-
-    class A,B start
-    class C,E,F,G writing
-    class D,H,I,J,K ai
+    F --> L[Student Uses Study Resources]
+    K --> L
 ```
 
-### The two workflows
+### Workflow overview
 
-**AI Study Assistant:** Student input and source material → prompt preparation → Google Gemini API → generated study response.
+1. The student opens Textify AI and supplies their study material.
+2. They can ask the AI assistant questions about the material or request study resources.
+3. The AI workflow sends a prepared prompt to the configured Google Gemini model.
+4. Alternatively, the student can customize the handwriting generator's appearance and page settings.
+5. The application renders the text into page images and provides a multi-page preview.
+6. The student can export the generated pages as a PDF.
 
-**Handwriting Generator:** Text input → handwriting and page customization → page preview → PDF export.
+The AI assistant and handwriting generator serve complementary purposes: one helps students work with study content, while the other formats text into handwritten-style documents.
 
-The Gemini API powers the study-assistance component. Handwriting rendering and PDF generation are handled by a separate document-generation workflow.
+## 5. Technology Stack
 
----
+| Technology | Purpose |
+|---|---|
+| **Python** | Core application programming language. |
+| **Streamlit** | Web interface, interactive controls, and application workflow. |
+| **Google Gemini API** | AI-powered study assistance. |
+| **Google Gen AI Python SDK (`google-genai`)** | Communication with the configured Gemini model. |
+| **Pillow (`PIL`)** | Text rendering, page image creation, and image processing. |
+| **Requests** | HTTP requests, including font downloads used by the application. |
+| **PDF utilities in Pillow** | Export rendered pages into PDF documents. |
+| **Streamlit Community Cloud** | Hosting the live application. |
+| **Git and GitHub** | Source control and project hosting. |
 
-## 🛠️ 5. AI Methodology and Implementation
+## 6. AI Methodology and Implementation
 
-Textify AI integrates the Google Gemini API to provide AI-powered study assistance.
+AI is a functional part of Textify AI's study assistant, rather than merely a tool used during development.
+
+### AI model
+
+| Item | Implementation |
+|---|---|
+| AI provider | Google |
+| Model identifier in source code | `gemini-3.8-flash` |
+| Python SDK | `google-genai` |
+| API client | `genai.Client(api_key=api_key)` |
+| API method | `client.interactions.create()` |
+| API credential | `GEMINI_API_KEY`, configured through Streamlit Secrets |
+
+The model identifier above is taken from the application's source code. Successful API access depends on the model being available to the configured API account and the account's access, quota, and billing settings.
 
 ### How the AI assistant works
 
-1. **User input:** The student supplies study material and enters a question or instruction.
-2. **Prompt preparation:** The application prepares a prompt containing the user's request, relevant source material, and recent conversation context.
-3. **Model inference:** The prompt is sent to the configured Gemini model through the Google Gen AI SDK.
-4. **Response generation:** The model generates a response such as an explanation, summary, revision notes, or practice questions.
-5. **Display and follow-up:** The application displays the response, allowing the student to continue the conversation.
+**1. User input**
 
-The prompt instructions prioritize the supplied source material, simple explanations, and avoiding unsupported facts or citations.
+The student supplies source material and asks a question or requests an output, such as an explanation, summary, revision outline, or MCQs.
 
-### Source material and conversation context
+**2. Context preparation**
 
-The current implementation passes at most the first **30,000 characters** of the supplied source text to the AI assistant. Recent conversation messages are also included in the prompt to support follow-up questions.
+The application prepares a prompt containing relevant source text, the user's request, and recent conversation messages where applicable. The source text passed to the AI is limited to the first 30,000 characters.
 
-As a result, material beyond the source-text limit may not be considered by the model. Students should provide relevant content and verify important answers.
+**3. Prompt-based guidance**
 
-### Handwriting and PDF generation
+The prompt instructs the assistant to:
 
-The handwriting workflow operates independently of the AI assistant:
+- Prioritize the student's supplied material.
+- Explain concepts clearly and simply.
+- Create summaries, notes, outlines, and practice questions when requested.
+- Maintain conversational context for follow-up questions.
+- Avoid inventing facts or citations.
+- Acknowledge uncertainty when the available information is insufficient.
 
-1. The user enters or pastes text.
-2. The application applies the selected handwriting font and supported page settings.
-3. The page-rendering workflow creates the handwritten-style output.
-4. The application prepares the document for preview and PDF export.
+**4. Model request**
 
-This separation allows Textify AI to combine AI-assisted studying and document formatting without implying that the AI model itself creates every handwritten page.
+The application uses the Google Gen AI Python SDK to send the prepared input to the configured Gemini model through `client.interactions.create()`.
 
----
+**5. Response presentation**
 
-## 🧠 6. AI Model and API Usage
-
-| Component | Implementation |
-|---|---|
-| AI provider | Google |
-| AI service | Google Gemini API |
-| Python SDK | `google-genai` |
-| Client initialization | `genai.Client(api_key=api_key)` |
-| API method | `client.interactions.create(...)` |
-| API credential | `GEMINI_API_KEY` |
-| Model identifier | `gemini-3.8-flash` in the previously documented implementation; verify against the final committed `app.py` |
-
-The AI assistant uses the Google Gen AI SDK to send prompts to the configured model and obtain generated responses.
-
-The integration follows this pattern:
-
-```python
-from google import genai
-
-client = genai.Client(api_key=api_key)
-
-response = client.interactions.create(
-    model="gemini-3.8-flash",
-    input=prompt
-)
-```
-
-**Model verification:** The identifier above reflects the previously documented implementation, not an independently verified inspection of the current GitHub repository. Before submission, confirm that the committed `app.py` contains this exact model identifier and that it is supported by the configured API. If the code differs, update this section to match the actual implementation.
+The returned response is displayed in the Streamlit interface so the student can continue the conversation or use the generated study content.
 
 ### API key configuration
 
-The AI Study Assistant requires a valid Gemini API key and access to the configured model.
+The API key is read from Streamlit Secrets using the `GEMINI_API_KEY` setting.
 
-1. Obtain an API key through [Google AI Studio](https://aistudio.google.com/).
-2. Create `.streamlit/secrets.toml` in the project directory.
-3. Add the following configuration:
+For local development, create a file named `.streamlit/secrets.toml`:
 
 ```toml
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 ```
 
-Replace the placeholder with your own key.
+Replace the placeholder with your own key. Never commit a real API key to GitHub or include it in screenshots, public logs, or demonstration videos.
 
-For Streamlit Community Cloud, configure `GEMINI_API_KEY` in your app's Secrets settings.
+For deployment, configure the same secret in the application's Streamlit Community Cloud settings.
 
-🔐 **Security:** Never commit the real `secrets.toml` file, publish API credentials, or expose secrets in screenshots, logs, or demo videos. Keep the file excluded through `.gitignore` and commit only a safe example configuration.
-
-**Official references:** [Google Gemini API](https://ai.google.dev/gemini-api/docs) · [Google Gen AI Python SDK](https://github.com/googleapis/python-genai)
-
----
-
-## ⚡ 7. Setup and Installation
-
-Run Textify AI locally using the following steps.
+## 7. Setup and Installation
 
 ### Prerequisites
 
 - Python installed on your computer.
-- Git installed to clone the repository.
-- A valid Google Gemini API key.
-- Internet access for API requests.
+- Git installed if you plan to clone the repository.
+- A Google Gemini API key for the AI Study Assistant.
+- Internet access for installing dependencies and accessing the AI API.
 
 ### Step 1: Clone the repository
 
@@ -221,138 +181,151 @@ git clone https://github.com/codewithMeesum/Textify-AI-.git
 cd Textify-AI-
 ```
 
-### Step 2: Create a virtual environment
-
-**Windows**
+### Step 2: Create a virtual environment (recommended)
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
 ```
 
-**macOS / Linux**
+Activate it on Windows:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
+.venv\Scripts\activate
+```
+
+On macOS or Linux:
+
+```bash
+source .venv/bin/activate
 ```
 
 ### Step 3: Install dependencies
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-The project's `requirements.txt` should include the packages required by the actual implementation, including Streamlit, Pillow, Requests, and `google-genai` where used.
+The dependency file should include the packages required by the application:
 
-### Step 4: Configure the Gemini API key
+```text
+streamlit
+Pillow
+requests
+google-genai
+```
 
-Create `.streamlit/secrets.toml` and add:
+Use the repository's actual `requirements.txt` as the source of truth if its package versions or dependencies differ.
+
+### Step 4: Configure the API key
+
+Create `.streamlit/secrets.toml` and add your Gemini API key:
 
 ```toml
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 ```
 
-Keep this file private and excluded from Git.
+Keep this file private. If it is not already excluded, add `.streamlit/secrets.toml` to `.gitignore`.
 
-### Step 5: Launch the application
+### Step 5: Run the application
 
 ```bash
 streamlit run app.py
 ```
 
-Open the local URL displayed in the terminal.
+Streamlit will display a local URL in the terminal. Open that URL in your browser.
 
-> **Note:** These instructions assume the repository contains `app.py`, `requirements.txt`, and the expected Streamlit configuration. The commands and dependency list should match the final committed project.
+**Note:** The handwriting generator and the AI Study Assistant have different requirements. AI features need a valid API configuration, while PDF generation relies on the application's rendering and export dependencies.
 
----
+## 8. How to Use Textify AI
 
-## 📖 8. How to Use
+### A. Generate handwritten-style notes
 
-<details>
-<summary><strong>✍️ Create handwritten-style notes</strong></summary>
+1. Open the application.
+2. Paste or enter the text you want to format.
+3. Choose a handwriting font.
+4. Select a paper style, paper color, and ink color.
+5. Choose a page size and orientation.
+6. Adjust spacing and margins to suit your content.
+7. Review the generated pages in the preview.
+8. Export the document as a PDF.
 
-1. Open [Textify AI](https://textifyai.streamlit.app/).
-2. Type or paste your text into the input box.
-3. Choose an available handwriting font and ink color.
-4. Customize the paper style, page size, orientation, margins, and spacing.
-5. Generate and preview your handwritten-style pages.
-6. Download the resulting PDF.
+### B. Use the AI Study Assistant
 
-</details>
+1. Enter or paste the relevant study material.
+2. Ask a question about the supplied content.
+3. Request a simple explanation, summary, revision notes, an outline, or MCQs.
+4. Review the response and verify important facts against your course materials.
+5. Ask follow-up questions to explore a concept further.
 
-<details>
-<summary><strong>🤖 Study with the AI Assistant</strong></summary>
+### C. Example prompts
 
-1. Open Textify AI and paste your study material into the content box.
-2. Find the AI Study Assistant below the content input.
-3. Ask a question about your material.
-4. Request a simpler explanation, summary, revision notes, or MCQs.
-5. Ask follow-up questions to continue exploring the topic.
+These are examples of requests you can type into the AI Study Assistant:
 
-**Example prompts:**
+- "Explain this topic in simple language."
+- "Summarize the main ideas from this material."
+- "Create structured revision notes."
+- "Generate multiple-choice questions with answers."
+- "Explain the difference between these two concepts using examples."
 
-- Explain this topic in simple words.
-- Summarize this content in five bullet points.
-- Create 10 MCQs with the correct answers.
-- Turn this material into revision notes.
-- Explain the difference between these two concepts.
-- Rewrite the previous explanation in three lines.
+The examples above are suggested user inputs, not claims that the interface contains preset prompt buttons.
 
-</details>
+## 9. Product Screenshots
 
----
-
-## 🖼️ 9. Product Screenshots
-
-The following four screenshots are provided through Google Drive. They should be accessible to reviewers with the appropriate sharing permissions.
+The following links point to screenshots supplied for the project. They are provided as linked images; if GitHub does not render them, check the Google Drive sharing permissions or save the actual image files inside the repository.
 
 ### Screenshot 1
 
-[![Textify AI Screenshot 1](https://drive.google.com/uc?export=view&id=1ql8a0icj0GXd2X8IaVvBrVg4hWzt6xMk)](https://drive.google.com/file/d/1ql8a0icj0GXd2X8IaVvBrVg4hWzt6xMk/view?usp=sharing)
-
 [Open Screenshot 1](https://drive.google.com/file/d/1ql8a0icj0GXd2X8IaVvBrVg4hWzt6xMk/view?usp=sharing)
+
+![Textify AI screenshot 1](https://drive.google.com/uc?export=view&id=1ql8a0icj0GXd2X8IaVvBrVg4hWzt6xMk)
 
 ### Screenshot 2
 
-[![Textify AI Screenshot 2](https://drive.google.com/uc?export=view&id=1_vl7wrX4Qw_Z3ukact8d0vBHGffVYDxl)](https://drive.google.com/file/d/1_vl7wrX4Qw_Z3ukact8d0vBHGffVYDxl/view?usp=sharing)
-
 [Open Screenshot 2](https://drive.google.com/file/d/1_vl7wrX4Qw_Z3ukact8d0vBHGffVYDxl/view?usp=sharing)
+
+![Textify AI screenshot 2](https://drive.google.com/uc?export=view&id=1_vl7wrX4Qw_Z3ukact8d0vBHGffVYDxl)
 
 ### Screenshot 3
 
-[![Textify AI Screenshot 3](https://drive.google.com/uc?export=view&id=1b7DkmPzGz4qQroZPFm54hG78qm-60_5v)](https://drive.google.com/file/d/1b7DkmPzGz4qQroZPFm54hG78qm-60_5v/view?usp=sharing)
-
 [Open Screenshot 3](https://drive.google.com/file/d/1b7DkmPzGz4qQroZPFm54hG78qm-60_5v/view?usp=sharing)
+
+![Textify AI screenshot 3](https://drive.google.com/uc?export=view&id=1b7DkmPzGz4qQroZPFm54hG78qm-60_5v)
 
 ### Screenshot 4
 
-[![Textify AI Screenshot 4](https://drive.google.com/uc?export=view&id=16mAMcacOVwKNNlZYr157SQI8JidsPRc1)](https://drive.google.com/file/d/16mAMcacOVwKNNlZYr157SQI8JidsPRc1/view?usp=sharing)
-
 [Open Screenshot 4](https://drive.google.com/file/d/16mAMcacOVwKNNlZYr157SQI8JidsPRc1/view?usp=sharing)
 
-**Screenshot note:** The image previews use Google Drive's direct-view URL format. Their rendering has not been verified in GitHub. If they do not display, download the images and commit them under `assets/screenshots/`, then replace these remote image URLs with repository-relative paths. GitHub supports relative image paths for files stored in a repository.
+![Textify AI screenshot 4](https://drive.google.com/uc?export=view&id=16mAMcacOVwKNNlZYr157SQI8JidsPRc1)
 
----
+**Recommended for reliable GitHub rendering:** Download the four images, add them to `assets/screenshots/`, and update the image paths to:
 
-## ⚠️ 10. AI Limitations and Responsible Use
+```markdown
+![Textify AI screenshot 1](assets/screenshots/screenshot-1.png)
+![Textify AI screenshot 2](assets/screenshots/screenshot-2.png)
+![Textify AI screenshot 3](assets/screenshots/screenshot-3.png)
+![Textify AI screenshot 4](assets/screenshots/screenshot-4.png)
+```
 
-- AI-generated responses may contain errors or incomplete information.
-- Students should verify important facts and review generated study material.
-- The current implementation sends at most the first 30,000 characters of supplied source text to the AI assistant.
-- AI functionality depends on API availability, model access, network connectivity, and applicable usage limits.
-- Generated summaries and practice questions should be reviewed before academic use.
-- Handwritten-style output is a visual rendering of text, not a scan of genuine handwritten notes.
-- Users should avoid submitting sensitive or confidential information.
-- API credentials must be stored securely and excluded from the public repository.
+Use the actual file extensions of your downloaded images. Ensure the Drive links are accessible to reviewers and that screenshots show genuine application output.
 
-Textify AI is intended to support studying and revision, not replace independent thinking, textbooks, instructors, or academic verification.
+## 10. AI Limitations and Responsible Use
 
----
+Textify AI is intended to support studying and document preparation. It does not replace textbooks, instructors, or independent verification.
 
-## 📂 11. Project Structure
+- **AI accuracy:** Gemini can produce incomplete, inaccurate, or misleading responses. Check important information against reliable course materials.
+- **Source context limit:** The current implementation sends at most the first 30,000 characters of source text to the AI. Material beyond that limit may not be considered.
+- **API availability:** AI responses depend on valid credentials, model access, network connectivity, and applicable usage limits.
+- **Privacy:** Avoid pasting passwords, private records, or sensitive personal information into the application.
+- **Handwriting appearance:** Generated documents imitate handwriting visually; they are not actual handwriting and may not perfectly reproduce natural pen strokes.
+- **Font availability:** Downloaded fonts may require internet access or a valid source. Network or font-loading issues can affect rendering.
+- **PDF review:** Check page breaks, text placement, special characters, and formatting before relying on an exported document.
+- **Academic integrity:** Use generated explanations and practice questions to support understanding. Follow your institution's rules when preparing and submitting academic work.
 
-The project is expected to follow a structure similar to this:
+Textify AI does not claim guaranteed grades, guaranteed learning outcomes, or error-free AI responses.
+
+## 11. Project Structure
+
+The repository can be organized as follows:
 
 ```text
 Textify-AI-/
@@ -367,64 +340,71 @@ Textify-AI-/
 └── .gitignore
 ```
 
-The final repository may contain additional files depending on the implementation.
+The exact contents of the repository may differ. Keep actual application files, dependencies, assets, and documentation consistent with the structure committed to GitHub.
 
-**Security note:** Keep the real `.streamlit/secrets.toml` file private. Commit only an example configuration with placeholder values.
+**Security reminder:** Commit only a safe example configuration such as `secrets.toml.example`. Do not commit `.streamlit/secrets.toml` containing a real API key.
+
+## 12. Team Members and Contributions
+
+**Project type:** Solo project
+
+**Developer:** Mesum Mukhtar
+
+As the sole project contributor, I am responsible for the project's development and presentation, including:
+
+- Designing and implementing the Streamlit application.
+- Developing the handwriting-style rendering and PDF export workflow.
+- Integrating the Google Gemini API for AI-assisted study features.
+- Preparing the application's interface and configuration.
+- Testing application components and refining the workflow.
+- Preparing the documentation, screenshots, and hackathon demonstration.
+
+No additional team members are claimed for this submission.
+
+## 13. Future Improvements
+
+Potential improvements include:
+
+- Support for uploading PDF and other study documents directly.
+- Additional handwriting styles and paper templates.
+- More advanced page-layout and formatting controls.
+- Improved handling of longer source documents.
+- More extensive automated tests for AI responses and PDF rendering.
+- Better font caching and resilience to network failures.
+- More options for exporting and organizing study resources.
+- Additional accessibility and language support.
+
+These are possible future enhancements and are not presented as completed features.
+
+## 14. Project Links
+
+| Resource | Link |
+|---|---|
+| **Live Application** | [textifyai.streamlit.app](https://textifyai.streamlit.app/) |
+| **GitHub Repository** | [Textify AI source code](https://github.com/codewithMeesum/Textify-AI-) |
+| **AI Provider** | [Google AI for Developers](https://ai.google.dev/) |
+| **Web Framework** | [Streamlit documentation](https://docs.streamlit.io/) |
+
+## 15. NYLP AI Hackathon 2026
+
+Textify AI is submitted in the context of the **NYLP AI Hackathon 2026** and the theme **"Build AI for Real-World Impact."**
+
+The project applies generative AI to an educational workflow by combining source-based study assistance with a handwriting-style document generator.
+
+The submission aims to demonstrate:
+
+- A practical student-focused problem and a working product.
+- Meaningful use of an external AI model and API.
+- A clear implementation and technology stack.
+- An accessible live demonstration and source repository.
+- Transparent limitations and responsible AI use.
 
 ---
 
-## 👨‍💻 12. Team Member Contributions
+<p align="center">
+  <strong>Textify AI — Study, Understand, Organize.</strong>
+</p>
 
-### Solo Project — Mesumm Mukhtar
-
-Textify AI is a solo project, with project development and submission managed by one contributor.
-
-The project's contribution areas include:
-
-- **Application development:** Python and Streamlit application implementation.
-- **AI integration:** Google Gemini API integration and the study-assistant prompt workflow.
-- **Handwriting generation:** Text rendering, page customization, preview, and PDF-export workflow.
-- **Testing and deployment:** Application testing, issue resolution, and deployment configuration.
-- **Documentation and presentation:** Project documentation and hackathon demonstration.
-
-These contribution areas should accurately reflect the work completed. AI-assisted development tools should be disclosed where required by the hackathon rules. The AI service integrated into the product itself is the Google Gemini API.
-
----
-
-## 🎯 13. Future Improvements
-
-Potential future improvements include:
-
-- Support for larger study documents and additional file formats.
-- More handwriting styles and page customization options.
-- Additional revision and study workflows.
-- Further testing of usability, accessibility, and AI response quality.
-
-These are proposed improvements, not claims about currently implemented functionality.
-
----
-
-## 🏆 14. NYLP AI Hackathon 2026
-
-**Project Name:** Textify AI  
-**Developer:** Mesumm Mukhtar  
-**Theme:** Build AI for Real-World Impact
-
-Textify AI combines AI-assisted study support with customizable handwritten-style note generation to address a practical challenge faced by students working with digital study material.
-
-- **Live Demo:** [https://textifyai.streamlit.app/](https://textifyai.streamlit.app/)
-- **GitHub Repository:** [https://github.com/codewithMeesum/Textify-AI-](https://github.com/codewithMeesum/Textify-AI-)
-
-This README documents the problem, solution, technology stack, setup process, AI methodology, model/API integration, product screenshots, limitations, and solo-project contributions for hackathon review.
-
----
-
-<div align="center">
-
-### Built with Python, Streamlit, and Google Gemini
-
-**Textify AI — Digital Text, Handwritten Style. Smarter Study.**
-
-⭐ If you find this project useful, consider giving the repository a star!
-
-</div>
+<p align="center">
+  Built by Mesum Mukhtar
+</p>
